@@ -75,6 +75,7 @@ public:
         add_command_impl<N, Args...>(path, wrapped);
     }
 
+    // executes command based on path and arguments
     void execute_command(std::vector<std::string> path, std::vector<std::string> args) {
         argparse_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
