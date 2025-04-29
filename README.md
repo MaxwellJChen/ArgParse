@@ -16,6 +16,7 @@ int main() {
   ArgParse ap;
   
   // add the command based on specified path
+  // must include number of arguments and argument types
   ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, foo);
 
   // traverses the same path again and calls the foo function
