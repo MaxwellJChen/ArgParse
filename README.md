@@ -16,7 +16,7 @@ int main() {
   ArgParse ap;
   
   // add the command based on specified path
-  ap.add_command({"bar", "baz", "foo"}, foo);
+  ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, foo);
 
   // traverses the same path again and calls the foo function
   ap.execute_command({"bar", "baz", "foo"}, {"10", "12.3", "30.5013"}); // prints 385.16599
