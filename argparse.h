@@ -47,17 +47,16 @@ private:
     argparse_node_t* root;
 
     // map of functions to convert string to desired type
-    std::unordered_map<std::type_index, std::function<std::any(std::string)>> conversions;
+    std::unordered_map<std::type_index, std::function<std::any(std::string)>> conversions {
+        {typeid(int), [](std::string s) { return stoi(s); }},
+        {typeid(float), [](std::string s) { return stof(s); }},
+        {typeid(double), [](std::string s) { return stod(s); }},
+        {typeid(std::string), [](std::string s) { return s; }}
+    };
 
 public:
     ArgParse() {
         root = new argparse_node_t();
-
-        // add default conversions
-        add_conversion<int>([](std::string s) { return stoi(s); });
-        add_conversion<float>([](std::string s) { return stof(s); });
-        add_conversion<double>([](std::string s) { return stod(s); });
-        add_conversion<std::string>([](std::string s) { return s; });
     }
 
     ~ArgParse() {
@@ -104,6 +103,32 @@ public:
         }
 
         cur->execute(args);
+    }
+
+    void execute_command(int argc, char* argv[]) {
+        std::vector<std::string> args(argc - 1);
+        for(int i = 1; i < argc; i++) {
+            args[i - 1] = std::string(argv[i]);
+        }
+
+        argparse_node_t* cur = root;
+        int idx = 0;
+        while(idx < args.size()) {
+            if(cur->next.find(args[idx]) != cur->next.end()) {
+                cur = cur->next[args[idx]];
+                idx++;
+            }
+            else {
+                break;
+            }
+        }
+
+        if(!(cur->execute)) {
+            std::cout<<"function does not exist"<<std::endl;
+            return;
+        }
+
+        cur->execute(std::vector<std::string>(args.begin() + idx, args.end()));
     }
 
     template<typename T>
