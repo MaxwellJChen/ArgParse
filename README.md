@@ -3,6 +3,7 @@
 Helper class for CLIs with extensive functions and "routing" logic based on user-inputted strings. Stores functions of any type and calls correct function based on user input. Casts arguments to proper types during runtime, allows flags and customizability of argument ordering, and more. Achieved with variadic templates and lambdas.
 
 ```add_command(std::vector<std::string> path, void (*func)(A...))```: stores the "path" of strings inputted by the user and accepts a function which returns void but has any argument type
+
 ```execute_command(std::vector<std::string> path, std::vector<std::string> args)```: traverses the provided path and executes the intended function after casting the provided arguments to the correct type
 
 Here is a simple example snippet to illustrate usage.
