@@ -69,6 +69,8 @@
         "format": "cpp",
         "stop_token": "cpp",
         "text_encoding": "cpp",
-        "thread": "cpp"
+        "thread": "cpp",
+        "any": "cpp",
+        "__split_buffer": "cpp"
     }
 }

@@ -1,54 +1,93 @@
 #ifndef ARGPARSE_H
 #define ARGPARSE_H
 
-#include <variant>
 #include <functional>
 #include <string>
-#include <vector>
+#include <tuple>
+#include <iostream>
+#include <unordered_map>
+
+template<typename T>
+T convert(std::string s) {
+    return (T) s;
+}
+
+template<>
+int convert<int>(std::string s) {
+    return std::stoi(s);
+}
+
+template<>
+double convert<double>(std::string s) {
+    return std::stod(s);
+}
+
+template<>
+float convert<float>(std::string s) {
+    return std::stof(s);
+}
+
+template<typename ...Args, std::size_t ...I>
+std::tuple<Args...> vector_to_tuple_impl(std::vector<std::string> args, std::index_sequence<I...>) {
+    return std::make_tuple(convert<Args>(args[I])...);
+}
+
+template<int N, typename ...Args>
+std::tuple<Args...> vector_to_tuple(std::vector<std::string> args) {
+    return vector_to_tuple_impl<Args...>(args, std::make_index_sequence<N>{});
+}
 
 class ArgParse {
 private:
-    template <typename T>
-    struct argparse_arg_t {
-        bool optional; // whether argument has default value
-        T def; // default value for 
-        std::vector<std::string> flags; // name of flags
-    };
-
-    template <typename Ret, typename ...Args>
     struct argparse_node_t {
-        std::vector<std::string> names; // name and aliases
-        bool end; // whether there is a function ending at this node
-        std::function<Ret(Args...)> func; // actual function to store
-        std::tuple<argparse_arg_t<Args>...> args; // flags for function arguments
-        std::vector<argparse_node_t*> next; // next nodes in tree
+        std::function<void(std::vector<std::string>)> execute;
+        std::unordered_map<std::string, argparse_node_t*> next;
     };
 
-    argparse_node_t<void>* root;
+    argparse_node_t* root;
 
 public:
-    ArgParse();
+    ArgParse() {
+        root = new argparse_node_t();
+    }
 
-    ~ArgParse();
+    ~ArgParse() = default;
 
-    // // add nodes to command tree with all function argument information included
-    // template<typename Ret, typename ...Args>
-    // void add_command(std::vector<std::string>& names, std::function<Ret(Args...)>* func, std::vector<std::string>& flags, std::vector<bool> optional, std::tuple<Args...> def);
+    template<int N, typename ...Args>
+    void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
+        argparse_node_t* cur = root;
+        for(int i = 0; i < path.size(); i++) {
+            if(cur->next.find(path[i]) == cur->next.end()) {
+                cur->next[path[i]] = new argparse_node_t();
+            }
+            cur = cur->next[path[i]];
+        }
 
-    // add nodes to command tree 
-    template<typename Ret, typename ...Args>
-    void add_command(std::vector<std::string>& names, std::function<Ret(Args...)>& func);
+        cur->execute = [=](std::vector<std::string> args) {
+            std::apply(func, vector_to_tuple<N, Args...>(args));
+        };
+    }
 
-    // // update information for function argument
-    // template <typename T>
-    // void add_arg(char* names[], int idx, char* flags, bool optional, T def);
+    // add nodes to command tree
+    template<int N, typename ...Args>
+    void add_command(std::vector<std::string> path, void (*func)(Args...)) {
+        std::function<void(Args...)> wrapped = func;
+        add_command_impl<N, Args...>(path, wrapped);
+    }
 
-    // // add flags for a function argument
-    // void add_flags(char* names[], int idx, char* flags);
+    void execute_command(std::vector<std::string> path, std::vector<std::string> args) {
+        argparse_node_t* cur = root;
+        for(int i = 0; i < path.size(); i++) {
+            cur = cur->next[path[i]];
+        }
 
-    // // add default value for a function argument
-    // template <typename T>
-    // void add_default(char* names[], int idx, bool optional, T def);
+        if(!(cur->execute)) {
+            std::cout<<"function does not exist"<<std::endl;
+            return;
+        }
+
+        cur->execute(args);
+    }
 };
 
 #endif
