@@ -5,12 +5,18 @@
 #include <iostream>
 #include "argparse.h"
 
-void baz(int x, double y, float z) {
-    std::cout<<x * y + z<<std::endl;
+// function to add to ArgParse database
+void foo(int x, float y, double z) {
+    std::cout<<x + y * z<<std::endl;
 }
- 
+  
 int main() {
-    ArgParse argparse;
-    argparse.add_command<3, int, double, float>({"foo", "bar", "baz"}, baz);
-    argparse.execute_command({"foo", "bar", "baz"}, {"10", "11.2", "12.3"});
+    ArgParse ap;
+
+    // add the command based on specified path
+    // must provide number of arguments and argument types at compile time
+    ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, foo);
+
+    // traverses the same path again and calls the foo function
+    ap.execute_command({"bar", "baz", "foo"}, {"10", "12.3", "30.5013"}); // prints 385.166
 }
