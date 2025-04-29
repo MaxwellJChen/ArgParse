@@ -1,5 +1,5 @@
 #include "foo.h"
 
-int Foo::foo() {
-    return 1;
+void Foo::foo() {
+    std::cout<<"foo"<<std::endl;
 }
