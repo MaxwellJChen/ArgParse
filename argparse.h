@@ -7,7 +7,9 @@
 #include <iostream>
 #include <unordered_map>
 #include <typeindex>
+#include <vector>
 #include <any>
+#include <utility>
 
 class ArgParse {
 private:
@@ -16,7 +18,7 @@ private:
         std::function<void(std::vector<std::string>)> execute;
 
         // list of next nodes
-        std::unordered_map<std::string, argparse_node_t*> next;
+        std::vector<std::pair<std::vector<std::string>, argparse_node_t*>> next;
     };
 
     // helper function for recursive destructor
@@ -38,6 +40,7 @@ private:
         return std::make_tuple(std::any_cast<Args>(convert<Args>(args[I]))...);
     }
 
+    // convert vector of string to desired tuple of correct type
     template<int N, typename ...Args>
     std::tuple<Args...> vector_to_tuple(std::vector<std::string> args) {
         return vector_to_tuple_impl<Args...>(args, std::make_index_sequence<N>{});
@@ -54,6 +57,21 @@ private:
         {typeid(std::string), [](std::string s) { return s; }}
     };
 
+    argparse_node_t* find_next(std::string name, argparse_node_t* cur) {
+        auto &next = cur->next;
+        for(int i = 0; i < next.size(); i++) {
+            std::vector<std::string>& names = next[i].first;
+
+            for(std::string& s : names) {
+                if(s == name) {
+                    return next[i].second;
+                }
+            }
+        }
+
+        return nullptr;
+    }
+
 public:
     ArgParse() {
         root = new argparse_node_t();
@@ -67,15 +85,21 @@ public:
     void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
         argparse_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
-            if(cur->next.find(path[i]) == cur->next.end()) {
-                cur->next[path[i]] = new argparse_node_t();
+            argparse_node_t* next = find_next(path[i], cur);
+
+            if(!next) {
+                next = new argparse_node_t();
+                cur->next.push_back({{path[i]}, next});
             }
-            cur = cur->next[path[i]];
+
+            cur = next;
         }
 
         cur->execute = [func, this](std::vector<std::string> args) {
             std::apply(func, vector_to_tuple<N, Args...>(args));
         };
+
+        
     }
 
     // add nodes to command tree
@@ -89,16 +113,16 @@ public:
     void execute_command(std::vector<std::string> path, std::vector<std::string> args) {
         argparse_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
-            if(cur->next.find(path[i]) == cur->next.end()) {
-                std::cout<<"path does not exist"<<std::endl;
+            cur = find_next(path[i], cur);
+
+            if(!cur) {
+                std::cout<<"command not found"<<std::endl;
                 return;
             }
-
-            cur = cur->next[path[i]];
         }
 
         if(!(cur->execute)) {
-            std::cout<<"function does not exist"<<std::endl;
+            std::cout<<"method not found"<<std::endl;
             return;
         }
 
@@ -114,13 +138,14 @@ public:
         argparse_node_t* cur = root;
         int idx = 0;
         while(idx < args.size()) {
-            if(cur->next.find(args[idx]) != cur->next.end()) {
-                cur = cur->next[args[idx]];
-                idx++;
-            }
-            else {
+            argparse_node_t* next = find_next(args[idx], cur);
+
+            if(!next) {
                 break;
             }
+
+            idx++;
+            cur = next;
         }
 
         if(!(cur->execute)) {
@@ -136,6 +161,33 @@ public:
         conversions[typeid(T)] = [convert](std::string s) {
             return std::any(convert(s));
         };
+    }
+
+    void add_alias(std::vector<std::string> path, std::string alias) {
+        argparse_node_t* cur = root;
+        for(int i = 0; i < path.size() - 1; i++) {
+            cur = find_next(path[i], cur);
+
+            if(!cur) {
+                std::cout<<"path not found"<<std::endl;
+                return;
+            }
+        }
+
+        int idx = path.size() - 1;
+        auto &next = cur->next;
+        for(int i = 0; i < next.size(); i++) {
+            std::vector<std::string>& names = next[i].first;
+
+            for(std::string& s : names) {
+                if(s == path[idx]) {
+                    names.push_back(alias);
+                    return;
+                }
+            }
+        }
+
+        std::cout<<"path not found"<<std::endl;
     }
 };
 
