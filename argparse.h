@@ -17,6 +17,9 @@ private:
         // executes arguments on previously provided function
         std::function<void(std::vector<std::string>)> execute;
 
+        // number of arguments in function
+        int num_args;
+
         // list of next nodes
         std::vector<std::pair<std::vector<std::string>, argparse_node_t*>> next;
     };
@@ -99,6 +102,7 @@ public:
         cur->execute = [func, this](std::vector<std::string> args) {
             std::apply(func, vector_to_tuple<N, Args...>(args));
         };
+        cur->num_args = N;
     }
 
     // add nodes to command tree
@@ -146,6 +150,11 @@ public:
 
             idx++;
             cur = next;
+        }
+
+        if(cur->num_args != argc - idx - 1) {
+            std::cout<<"path not found"<<std::endl;
+            return;
         }
 
         if(!(cur->execute)) {
