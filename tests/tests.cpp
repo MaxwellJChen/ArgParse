@@ -43,7 +43,6 @@ protected:
     }
 };
 
-
 TEST_F(ArgParseTests, SingleArgumentTest) {
     ArgParse ap;
 
@@ -52,7 +51,26 @@ TEST_F(ArgParseTests, SingleArgumentTest) {
     };
 
     ap.add_command<1, int>({"bar", "baz", "foo"}, func);
-    ap.execute_command({"bar", "baz", "foo"}, {"500"});
+
+    int argc = 5;
+    char* argv[] = {"argparse", "bar", "baz", "foo", "500"};
+    ap.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
+}
+
+TEST_F(ArgParseTests, MultiArgumentTest) {
+    ArgParse ap;
+
+    void (*func)(int, float, double) = [](int x, float y, double z) {
+        std::cout<<x + y * z<<std::endl;
+    };
+
+    ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, func);
+
+    int argc = 7;
+    char* argv[] = {"argparse", "bar", "baz", "foo", "10", "12.3", "30.5013"};
+    ap.execute_command(argc, argv);
+
+    EXPECT_EQ(output_buffer.str(), "385.166\n");
 }

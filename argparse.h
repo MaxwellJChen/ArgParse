@@ -99,19 +99,17 @@ public:
         cur->execute = [func, this](std::vector<std::string> args) {
             std::apply(func, vector_to_tuple<N, Args...>(args));
         };
-
-        
     }
 
     // add nodes to command tree
     template<int N, typename ...Args>
-    void add_command(std::vector<std::string> path, void (*func)(Args...)) {
+    void add_command(const std::vector<std::string> path, void (*func)(Args...)) {
         std::function<void(Args...)> wrapped = func;
         add_command_impl<N, Args...>(path, wrapped);
     }
 
     // executes command based on path and arguments
-    void execute_command(std::vector<std::string> path, std::vector<std::string> args) {
+    void execute_command(const std::vector<std::string> path, const std::vector<std::string> args) {
         argparse_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
             cur = find_next(path[i], cur);
