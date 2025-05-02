@@ -57,6 +57,7 @@ private:
         {typeid(std::string), [](std::string s) { return s; }}
     };
 
+    // searches next nodes for a given name
     argparse_node_t* find_next(std::string name, argparse_node_t* cur) {
         auto &next = cur->next;
         for(int i = 0; i < next.size(); i++) {
@@ -122,13 +123,14 @@ public:
         }
 
         if(!(cur->execute)) {
-            std::cout<<"method not found"<<std::endl;
+            std::cout<<"function not found"<<std::endl;
             return;
         }
 
         cur->execute(args);
     }
 
+    // executes command based on command line input
     void execute_command(int argc, char* argv[]) {
         std::vector<std::string> args(argc - 1);
         for(int i = 1; i < argc; i++) {
@@ -149,7 +151,7 @@ public:
         }
 
         if(!(cur->execute)) {
-            std::cout<<"function does not exist"<<std::endl;
+            std::cout<<"function not found"<<std::endl;
             return;
         }
 

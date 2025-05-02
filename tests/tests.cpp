@@ -1,12 +1,9 @@
-#include <functional>
+#include <gtest/gtest.h>
 #include <string>
-#include <array>
-#include <tuple>
 #include <iostream>
-#include "argparse.h"
-#include "foo.h"
+#include "../argparse.h"
 
-// function to add to ArgParse database
+
 void foo(int x, float y, double z) {
     std::cout<<x + y * z<<std::endl;
 }
@@ -26,8 +23,12 @@ struct test_t {
 void test(test_t t) {
     std::cout<<t.a<<std::endl;
 }
-  
-int main(int argc, char* argv[]) {
+
+TEST(HelloTest, BasicAssertions) {
+    EXPECT_STRNE("hello", "world");
+
+    EXPECT_EQ(7 * 6, 42);
+
     ArgParse ap;
 
     ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, foo);
@@ -39,9 +40,6 @@ int main(int argc, char* argv[]) {
     ap.add_command<0>({"baz", "asdlfajsldkfjalksdfjaklsjdflkajsldkfj"}, baz);
     ap.execute_command({"baz", "asdlfajsldkfjalksdfjaklsjdflkajsldkfj"}, {}); // baz
 
-    ap.add_command<0>({"class"}, Foo::foo);
-    ap.execute_command({"class"}, {}); // foo
-
     ap.add_conversion<test_t>([](std::string s) {
         return test_t { 3 * stoi(s) };
     });
@@ -50,6 +48,4 @@ int main(int argc, char* argv[]) {
 
     ap.add_alias({"baz", "asdlfajsldkfjalksdfjaklsjdflkajsldkfj"}, "a");
     ap.execute_command({"baz", "a"}, {});
-
-    ap.execute_command(argc, argv);
 }
