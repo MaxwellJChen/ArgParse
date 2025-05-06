@@ -1,7 +1,7 @@
 # ArgParse: C++ CLI Argument Parser & Function Dispatcher
 
 ## Capabilities
-Completely eliminate the nested ifs and switch statements to call the right method based a sequence of input strings for CLI development.
+ArgParse is a helper class which simplifies CLI development by handling command execution and argument parsing/casting under-the-hood. Completely eliminate the nested ifs and switch statements to route to the proper command, alongside the logic to cast and execute afterwards.
 - Calls the correct method based on inputted strings
 - Casts method arguments to any user-defined type
 - Accepts any method as long as static or free methods with void return type
