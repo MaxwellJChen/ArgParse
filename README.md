@@ -81,7 +81,7 @@ int main(int argc, char* argv) {
   ap.add_invalid_args_message({"bar", "test"}, "Command failed");
   ap.add_alias({"bar"}, "b");
 
-  ap.add_conversion(convert_to_custom_type); // must provide conversions for strings, not char*
+  ap.add_conversion(convert_to_custom_type); // add the custom conversion to ArgParse
   ap.add_command<1, custom_type_t>({"baz"}, baz);
   ap.add_invalid_args_message({"baz"}, "Baz failed");
 
