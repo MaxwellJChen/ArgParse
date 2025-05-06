@@ -167,7 +167,7 @@ TEST_F(ArgParseTests, MissingFunctionTest) {
     char* argv[] = {"argparse", "bar"};
     ap.execute_command(argc, argv);
 
-    EXPECT_EQ(output_buffer.str(), "function not found\n");
+    EXPECT_EQ(output_buffer.str(), "command not found\n");
 }
 
 TEST_F(ArgParseTests, MissingCommandTest) {
@@ -183,5 +183,22 @@ TEST_F(ArgParseTests, MissingCommandTest) {
     char* argv[] = {"argparse", "foo", "bar", "baz"};
     ap.execute_command(argc, argv);
 
-    EXPECT_EQ(output_buffer.str(), "path not found\n");
+    EXPECT_EQ(output_buffer.str(), "command not found\n");
+}
+
+TEST_F(ArgParseTests, InvalidArgsTest) {
+    ArgParse ap;
+
+    void (*func)(long double) = [](long double s) {
+        std::cout<<s<<std::endl;
+    };
+
+    ap.add_command<1, long double>({"test"}, func);
+    ap.add_invalid_args_message({"test"}, "updated message");
+
+    int argc = 2;
+    char* argv[] = {"argparse", "test", "10"};
+    ap.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "updated message\n");
 }
