@@ -202,3 +202,25 @@ TEST_F(ArgParseTests, InvalidArgsTest) {
     
     EXPECT_EQ(output_buffer.str(), "updated message\n");
 }
+
+TEST_F(ArgParseTests, MemberMethodTest) {
+    class Foo {
+        int x;
+
+    public:
+        void set_x(int new_x) {
+            x = new_x;
+        }
+
+        void print_x() {
+            std::cout<<x<<std::endl;
+        }
+    };
+
+    Foo f;
+
+    ArgParse ap;
+
+    
+    ap.add_command<0>({"foo"}, Foo::print_x);
+}

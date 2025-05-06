@@ -1,15 +1,15 @@
 #ifndef ARGPARSE_H
 #define ARGPARSE_H
 
+#include <any>
 #include <functional>
+#include <iostream>
 #include <string>
 #include <tuple>
-#include <iostream>
-#include <unordered_map>
 #include <typeindex>
-#include <vector>
-#include <any>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
 class ArgParse {
 private:
