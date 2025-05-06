@@ -104,6 +104,6 @@ The core of ArgParse is the idea of a "path". Every command a CLI accepts consis
 Support for flags is still in development.
 
 ## Under-The-Hood
-The main obstacle to ArgParse is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with std::any and variadic templates. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
+The main obstacle to ArgParse is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with ```std::any```, variadic templates, and lambdas. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
 
 Paths themselves are represented in a tree. Oftentimes, the same path members are used to specify functions with similar usage. Thus, some space is saved by representing a CLI as a tree, traversing down branches based on the input path, and then executing the function at the discovered node. Each node contains metadata about error messages, methods to execute, flags and default values, etc.
