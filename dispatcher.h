@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-class ArgParse {
+class Dispatcher {
 private:
-    struct argparse_node_t {
+    struct dispatch_node_t {
         // executes arguments on previously provided function
         std::function<void(std::vector<std::string>)> execute;
 
@@ -24,7 +24,7 @@ private:
         int num_args;
 
         // list of next nodes
-        std::vector<std::pair<std::vector<std::string>, argparse_node_t*>> next;
+        std::vector<std::pair<std::vector<std::string>, dispatch_node_t*>> next;
 
         // node ends but not a function
         std::string invalid_command = "command not found";
@@ -33,7 +33,7 @@ private:
         std::string invalid_args = "invalid arguments";
 
         // searches next nodes for a given name
-        argparse_node_t* find(std::string name) {
+        dispatch_node_t* find(std::string name) {
             for(int i = 0; i < next.size(); i++) {
                 std::vector<std::string>& names = next[i].first;
 
@@ -73,7 +73,7 @@ private:
     };
 
     // helper function for recursive destructor
-    void destructor_helper(argparse_node_t* cur) {
+    void destructor_helper(dispatch_node_t* cur) {
         for(auto p : cur->next) {
             destructor_helper(p.second);
         }
@@ -98,7 +98,7 @@ private:
     }
 
     // root node of command tree
-    argparse_node_t* root;
+    dispatch_node_t* root;
 
     // map of functions to convert string to desired type
     std::unordered_map<std::type_index, std::function<std::any(std::string)>> conversions {
@@ -109,8 +109,8 @@ private:
     };
 
     // traverses path and returns node found
-    argparse_node_t* traverse_entire(std::vector<std::string> path) {
-        argparse_node_t* cur = root;
+    dispatch_node_t* traverse_entire(std::vector<std::string> path) {
+        dispatch_node_t* cur = root;
         for(std::string& name : path) {
             cur = cur->find(name);
 
@@ -123,12 +123,12 @@ private:
     }
 
     // traverses and returns before nullptr
-    std::pair<int, argparse_node_t*> traverse_until(std::vector<std::string> path) {
-        argparse_node_t* cur = root;
+    std::pair<int, dispatch_node_t*> traverse_until(std::vector<std::string> path) {
+        dispatch_node_t* cur = root;
         int idx;
         
         for(idx = 0; idx < path.size(); idx++) {
-            argparse_node_t* next = cur->find(path[idx]);
+            dispatch_node_t* next = cur->find(path[idx]);
 
             if(!next) {
                 return {idx, cur};
@@ -141,13 +141,13 @@ private:
     }
 
     // drills node into tree
-    argparse_node_t* traverse_drill(std::vector<std::string> path) {
-        argparse_node_t* cur = root;
+    dispatch_node_t* traverse_drill(std::vector<std::string> path) {
+        dispatch_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
-            argparse_node_t* next = cur->find(path[i]);
+            dispatch_node_t* next = cur->find(path[i]);
 
             if(!next) {
-                next = new argparse_node_t();
+                next = new dispatch_node_t();
                 cur->next.push_back({{path[i]}, next});
             }
 
@@ -158,17 +158,17 @@ private:
     }
 
 public:
-    ArgParse() {
-        root = new argparse_node_t();
+    Dispatcher() {
+        root = new dispatch_node_t();
     }
 
-    ~ArgParse() {
+    ~Dispatcher() {
         destructor_helper(root);
     }
 
     template<int N, typename ...Args>
     void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
-        argparse_node_t* cur = traverse_drill(path);
+        dispatch_node_t* cur = traverse_drill(path);
 
         cur->check = [this](std::vector<std::string> args) {
             if(args.size() != N) {
@@ -200,7 +200,7 @@ public:
 
     // executes command based on path and arguments
     void execute_command(const std::vector<std::string> path, const std::vector<std::string> args) {
-        argparse_node_t* cur = traverse_entire(path);
+        dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
             std::cout<<"command not found"<<std::endl;
@@ -253,7 +253,7 @@ public:
 
     // add an alias for the last value in a path
     void add_alias(std::vector<std::string> path, std::string alias) {
-        argparse_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
+        dispatch_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
  
         if(!cur) {
             std::cout<<"path not found"<<std::endl;
@@ -267,7 +267,7 @@ public:
 
     // add a message for invalid arguments on a node
     void add_invalid_args_message(std::vector<std::string> path, std::string msg) {
-        argparse_node_t* cur = traverse_entire(path);
+        dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
             std::cout<<"path not found"<<std::endl;
@@ -278,7 +278,7 @@ public:
 
     // add a message for if a node lacks a command
     void add_invalid_command_message(std::vector<std::string> path, std::string msg) {
-        argparse_node_t* cur = traverse_entire(path);
+        dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
             std::cout<<"path not found"<<std::endl;

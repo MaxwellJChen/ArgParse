@@ -1,7 +1,7 @@
-# ArgParse: C++ CLI Argument Parser & Function Dispatcher
+# CLI Dispatcher: C++ CLI Argument Parser & Function Dispatcher
 
 ## Capabilities
-ArgParse is a helper class which simplifies CLI development by handling command execution and argument parsing/casting under-the-hood. Completely eliminate the nested ifs and switch statements to route to the proper command, alongside the logic to cast and execute afterwards.
+Dispatcher is a helper class which simplifies CLI development by handling command execution and argument parsing/casting under-the-hood. Completely eliminate the nested ifs and switch statements to route to the proper command, alongside the logic to cast and execute afterwards.
 - Calls the correct method based on inputted strings
 - Casts method arguments to any user-defined type
 - Accepts any method as long as static or free methods with void return type
@@ -11,7 +11,7 @@ ArgParse is a helper class which simplifies CLI development by handling command 
 
 ## Usage
 
-Here is an example to illustrate how ArgParse can simplify CLI development. 
+Here is an example to illustrate how Dispatcher can simplify CLI development. 
 
 Previously, calling the correct function based on ```argc``` and ```argv``` values required extensive routing with comparisons and casting all done by the developer. This can lead to hard-to-maintain code. 
 
@@ -68,30 +68,30 @@ int main(int argc, char* argv) {
 }
 ```
 
-To create similar behavior with ArgParse, the result is simpler and more readable.
+To create similar behavior with Dispatcher, the result is simpler and more readable.
 ```
 int main(int argc, char* argv) {
-  ArgParse ap;
+  Dispatcher d;
 
-  ap.add_command<1, double>({"foo"}, foo);
-  ap.add_invalid_args_message({"foo"}, "Invalid arguments for foo");
-  ap.add_alias({"foo"}, "f");
+  d.add_command({"foo"}, foo);
+  d.add_invalid_args_message({"foo"}, "Invalid arguments for foo");
+  d.add_alias({"foo"}, "f");
 
-  ap.add_command<2, float, std::string>({"bar", "test"}, bar);
-  ap.add_invalid_args_message({"bar", "test"}, "Command failed");
-  ap.add_alias({"bar"}, "b");
+  d.add_command({"bar", "test"}, bar);
+  d.add_invalid_args_message({"bar", "test"}, "Command failed");
+  d.add_alias({"bar"}, "b");
 
-  ap.add_conversion(convert_to_custom_type); // add the custom conversion to ArgParse
-  ap.add_command<1, custom_type_t>({"baz"}, baz);
-  ap.add_invalid_args_message({"baz"}, "Baz failed");
+  d.add_conversion(convert_to_custom_type); // add the custom conversion to ArgParse
+  d.add_command({"baz"}, baz);
+  d.add_invalid_args_message({"baz"}, "Baz failed");
 
-  ap.execute_command(argc, argv);
+  d.execute_command(argc, argv);
 }
 ```
 
 The core of ArgParse is the idea of a "path". Every command a CLI accepts consists of a path, then a set of arguments and flags. The "path" indicates the right method to call. E.g., ```git remote add``` is a path followed by 2 arguments. Similarly, ```ls``` is a path optionally followed by no arguments. In every CLI, paths between different commands are distinct and can be used to uniquely identify a command.
 
-```void<N, Args...> add_command(std::vector<std::string> path, void (*func)(A...))```: Add a method to the ArgParse object. Users must specify the path needed to reach the function, a pointer to the function itself, and then in the template, the number of arguments and their types. Again, the function must return void and be free or static.
+```void add_command(std::vector<std::string> path, void (*func)(A...))```: Add a method to the ArgParse object. Users must specify the path needed to reach the function along with a pointer to the function itself. Again, the function must return void and be free or static.
 
 ```void add_alias(std::vector<std::string> path, std::string alias)```: Add an alias for the final string in a path.
 
@@ -104,8 +104,8 @@ The core of ArgParse is the idea of a "path". Every command a CLI accepts consis
 Support for flags is still in development.
 
 ## Under-The-Hood
-The main obstacle to ArgParse is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with ```std::any```, variadic templates, and lambdas. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
+The main obstacle to Dispatcher is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with ```std::any```, variadic templates, and lambdas. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
 
 Paths themselves are represented in a tree. Oftentimes, the same path members are used to specify functions with similar usage. Thus, it is logical to represent the CLI as a tree, traverse down branches based on the input path, and then execute the function at the discovered node. Each node contains metadata about error messages, methods to execute, flags and default values, etc.
 
-All code is in the ```argparse.h``` file.
+All code is in the ```dispatcher.h``` file.

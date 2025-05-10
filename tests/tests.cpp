@@ -2,9 +2,9 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-#include "../argparse.h"
+#include "../dispatcher.h"
 
-class ArgParseTests : public ::testing::Test {
+class DispatcherTests : public ::testing::Test {
 protected:
     std::stringstream input_buffer;
     std::stringstream output_buffer;
@@ -26,38 +26,38 @@ protected:
     }
 };
 
-TEST_F(ArgParseTests, SingleArgumentTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, SingleArgumentTest) {
+    Dispatcher d;
 
     void (*func)(int) = [](int x) {
         std::cout<<x * 2<<std::endl;
     };
 
-    ap.add_command({"bar", "baz", "foo"}, func);
+    d.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 5;
-    char* argv[] = {"argparse", "bar", "baz", "foo", "500"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "bar", "baz", "foo", "500"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
 }
 
-TEST_F(ArgParseTests, MultiArgumentTest) {
+TEST_F(DispatcherTests, MultiArgumentTest) {
     void (*func)(int, float, double) = [](int x, float y, double z) {
         std::cout<<x + y * z<<std::endl;
     };
 
-    ArgParse ap;
-    ap.add_command({"bar", "baz", "foo"}, func);
+    Dispatcher d;
+    d.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 7;
-    char* argv[] = {"argparse", "bar", "baz", "foo", "10", "12.3", "30.5013"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "bar", "baz", "foo", "10", "12.3", "30.5013"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "385.166\n");
 }
 
-TEST_F(ArgParseTests, CustomTypeTest) {
+TEST_F(DispatcherTests, CustomTypeTest) {
     struct test_t {
         int a;
     };
@@ -66,58 +66,58 @@ TEST_F(ArgParseTests, CustomTypeTest) {
         std::cout<<t.a * 2<<std::endl;
     };
 
-    ArgParse ap;
-    ap.add_conversion<test_t>([](std::string s) {
+    Dispatcher d;
+    d.add_conversion<test_t>([](std::string s) {
         return test_t { stoi(s) };
     });
-    ap.add_command({"test"}, func);
+    d.add_command({"test"}, func);
 
     int argc = 3;
-    char* argv[] = {"argparse", "test", "500"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "test", "500"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
 }
 
-TEST_F(ArgParseTests, AliasTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, AliasTest) {
+    Dispatcher d;
 
     void (*func)(int) = [](int x) {
         std::cout<<x * 2<<std::endl;
     };
 
-    ap.add_command({"bar", "baz", "foo"}, func);
-    ap.add_alias({"bar"}, "b");
-    ap.add_alias({"bar", "baz"}, "b");
-    ap.add_alias({"bar", "baz", "foo"}, "f");
+    d.add_command({"bar", "baz", "foo"}, func);
+    d.add_alias({"bar"}, "b");
+    d.add_alias({"bar", "baz"}, "b");
+    d.add_alias({"bar", "baz", "foo"}, "f");
 
 
     int argc = 5;
-    char* argv[] = {"argparse", "b", "b", "f", "500"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "b", "b", "f", "500"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
 }
 
-TEST_F(ArgParseTests, NoArgumentsTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, NoArgumentsTest) {
+    Dispatcher d;
 
     void (*func)(void) = []() {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command({"bar", "baz", "foo"}, func);
+    d.add_command({"bar", "baz", "foo"}, func);
 
 
     int argc = 4;
-    char* argv[] = {"argparse", "bar", "baz", "foo"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "bar", "baz", "foo"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "test\n");
 }
 
-TEST_F(ArgParseTests, MultipleFunctionsTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, MultipleFunctionsTest) {
+    Dispatcher d;
 
     void (*func1)(int) = [](int x) {
         std::cout<<x * 2<<std::endl;
@@ -129,76 +129,76 @@ TEST_F(ArgParseTests, MultipleFunctionsTest) {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command({"foo", "bar", "func1"}, func1);
-    ap.add_command({"foo", "bar", "func2"}, func2);
-    ap.add_command({"func3"}, func3);
+    d.add_command({"foo", "bar", "func1"}, func1);
+    d.add_command({"foo", "bar", "func2"}, func2);
+    d.add_command({"func3"}, func3);
 
     int argc = 5;
-    char* argv1[] = {"argparse", "foo", "bar", "func1", "500"};
-    ap.execute_command(argc, argv1);
+    char* argv1[] = {"Dispatcher", "foo", "bar", "func1", "500"};
+    d.execute_command(argc, argv1);
     EXPECT_EQ(output_buffer.str(), "1000\n");
     output_buffer.str("");
     output_buffer.clear();
 
     argc = 7;
-    char* argv2[] = {"argparse", "foo", "bar", "func2", "10", "12.3", "30.5013"};
-    ap.execute_command(argc, argv2);
+    char* argv2[] = {"Dispatcher", "foo", "bar", "func2", "10", "12.3", "30.5013"};
+    d.execute_command(argc, argv2);
     EXPECT_EQ(output_buffer.str(), "385.166\n");
     output_buffer.str("");
     output_buffer.clear();
 
     argc = 2;
-    char* argv3[] = {"argparse", "func3"};
-    ap.execute_command(argc, argv3);
+    char* argv3[] = {"Dispatcher", "func3"};
+    d.execute_command(argc, argv3);
 
     EXPECT_EQ(output_buffer.str(), "test\n");
 }
 
-TEST_F(ArgParseTests, MissingFunctionTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, MissingFunctionTest) {
+    Dispatcher d;
 
     void (*func)(void) = []() {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command({"bar", "baz"}, func);
+    d.add_command({"bar", "baz"}, func);
     
     int argc = 2;
-    char* argv[] = {"argparse", "bar"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "bar"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "command not found\n");
 }
 
-TEST_F(ArgParseTests, MissingCommandTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, MissingCommandTest) {
+    Dispatcher d;
 
     void (*func)(void) = []() {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command({"bar", "baz"}, func);
+    d.add_command({"bar", "baz"}, func);
     
     int argc = 4;
-    char* argv[] = {"argparse", "foo", "bar", "baz"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "foo", "bar", "baz"};
+    d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "command not found\n");
 }
 
-TEST_F(ArgParseTests, InvalidArgsTest) {
-    ArgParse ap;
+TEST_F(DispatcherTests, InvalidArgsTest) {
+    Dispatcher d;
 
     void (*func)(long double) = [](long double s) {
         std::cout<<s<<std::endl;
     };
 
-    ap.add_command({"test"}, func);
-    ap.add_invalid_args_message({"test"}, "updated message");
+    d.add_command({"test"}, func);
+    d.add_invalid_args_message({"test"}, "updated message");
 
     int argc = 2;
-    char* argv[] = {"argparse", "test", "10"};
-    ap.execute_command(argc, argv);
+    char* argv[] = {"Dispatcher", "test", "10"};
+    d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "updated message\n");
 }
