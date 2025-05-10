@@ -1,7 +1,7 @@
 # ArgParse: C++ CLI Argument Parser & Function Dispatcher
 
 ## Capabilities
-Completely eliminate the nested ifs and switch statements to call the right method based a sequence of input strings for CLI development.
+ArgParse is a helper class which simplifies CLI development by handling command execution and argument parsing/casting under-the-hood. Completely eliminate the nested ifs and switch statements to route to the proper command, alongside the logic to cast and execute afterwards.
 - Calls the correct method based on inputted strings
 - Casts method arguments to any user-defined type
 - Accepts any method as long as static or free methods with void return type
@@ -81,7 +81,7 @@ int main(int argc, char* argv) {
   ap.add_invalid_args_message({"bar", "test"}, "Command failed");
   ap.add_alias({"bar"}, "b");
 
-  ap.add_conversion(convert_to_custom_type); // must provide conversions for strings, not char*
+  ap.add_conversion(convert_to_custom_type); // add the custom conversion to ArgParse
   ap.add_command<1, custom_type_t>({"baz"}, baz);
   ap.add_invalid_args_message({"baz"}, "Baz failed");
 
@@ -104,6 +104,8 @@ The core of ArgParse is the idea of a "path". Every command a CLI accepts consis
 Support for flags is still in development.
 
 ## Under-The-Hood
-The main obstacle to ArgParse is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with std::any and variadic templates. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
+The main obstacle to ArgParse is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with ```std::any```, variadic templates, and lambdas. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
 
-Paths themselves are represented in a tree. Oftentimes, the same path members are used to specify functions with similar usage. Thus, some space is saved by representing a CLI as a tree, traversing down branches based on the input path, and then executing the function at the discovered node. Each node contains metadata about error messages, methods to execute, flags and default values, etc.
+Paths themselves are represented in a tree. Oftentimes, the same path members are used to specify functions with similar usage. Thus, it is logical to represent the CLI as a tree, traverse down branches based on the input path, and then execute the function at the discovered node. Each node contains metadata about error messages, methods to execute, flags and default values, etc.
+
+All code is in the ```argparse.h``` file.
