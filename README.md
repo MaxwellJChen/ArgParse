@@ -81,7 +81,7 @@ int main(int argc, char* argv) {
   d.add_invalid_args_message({"bar", "test"}, "Command failed");
   d.add_alias({"bar"}, "b");
 
-  d.add_conversion(convert_to_custom_type); // add the custom conversion to ArgParse
+  d.add_conversion(convert_to_custom_type); // add the custom conversion to Dispatcher
   d.add_command({"baz"}, baz);
   d.add_invalid_args_message({"baz"}, "Baz failed");
 
@@ -89,9 +89,9 @@ int main(int argc, char* argv) {
 }
 ```
 
-The core of ArgParse is the idea of a "path". Every command a CLI accepts consists of a path, then a set of arguments and flags. The "path" indicates the right method to call. E.g., ```git remote add``` is a path followed by 2 arguments. Similarly, ```ls``` is a path optionally followed by no arguments. In every CLI, paths between different commands are distinct and can be used to uniquely identify a command.
+The core of Dispatcher is the idea of a "path". Every command a CLI accepts consists of a path, then a set of arguments and flags. The "path" indicates the right method to call. E.g., ```git remote add``` is a path followed by 2 arguments. Similarly, ```ls``` is a path optionally followed by no arguments. In every CLI, paths between different commands are distinct and can be used to uniquely identify a command.
 
-```void add_command(std::vector<std::string> path, void (*func)(A...))```: Add a method to the ArgParse object. Users must specify the path needed to reach the function along with a pointer to the function itself. Again, the function must return void and be free or static.
+```void add_command(std::vector<std::string> path, void (*func)(A...))```: Add a method to the Dispatcher object. Users must specify the path needed to reach the function along with a pointer to the function itself. Again, the function must return void and be free or static.
 
 ```void add_alias(std::vector<std::string> path, std::string alias)```: Add an alias for the final string in a path.
 
