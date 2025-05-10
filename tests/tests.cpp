@@ -196,9 +196,61 @@ TEST_F(DispatcherTests, InvalidArgsTest) {
     d.add_command({"test"}, func);
     d.add_invalid_args_message({"test"}, "updated message");
 
-    int argc = 2;
+    int argc = 3;
     char* argv[] = {"Dispatcher", "test", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "updated message\n");
+}
+
+TEST_F(DispatcherTests, FlagTest) {
+    Dispatcher d;
+
+    void (*func)(int, int) = [](int x, int y) {
+        std::cout<<x + y<<std::endl;
+    };
+
+    d.add_command({"test"}, func);
+    d.add_flag({"test"}, 1, "y");
+
+    int argc = 5;
+    char* argv[] = {"Dispatcher", "test", "-y", "20", "10"};
+    d.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "30\n");
+}
+
+TEST_F(DispatcherTests, DefaultTest) {
+    Dispatcher d;
+
+    void (*func)(int, int) = [](int x, int y) {
+        std::cout<<x + y<<std::endl;
+    };
+
+    d.add_command({"test"}, func);
+    d.add_default({"test"}, 1, "300");
+
+    int argc = 3;
+    char* argv[] = {"Dispatcher", "test", "10"};
+    d.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "310\n");
+}
+
+TEST_F(DispatcherTests, DefaultFlagTest) {
+    Dispatcher d;
+
+    void (*func)(int, int) = [](int x, int y) {
+        std::cout<<x + y<<std::endl;
+    };
+
+    d.add_command({"test"}, func);
+    d.add_flag({"test"}, 1, "y");
+    d.add_default({"test"}, 0, "20");
+
+    int argc = 4;
+    char* argv[] = {"Dispatcher", "test", "-y", "10"};
+    d.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "30\n");
 }

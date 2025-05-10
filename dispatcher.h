@@ -8,11 +8,20 @@
 #include <tuple>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 class Dispatcher {
 private:
+    // struct to encode information about a function argument
+    struct arg_t {
+        // flag used to specify value for this argument
+        std::unordered_set<std::string> flags;
+
+        std::string default_value;
+    };
+
     struct dispatch_node_t {
         // executes arguments on previously provided function
         std::function<void(std::vector<std::string>)> execute;
@@ -22,6 +31,9 @@ private:
 
         // number of arguments in function
         int num_args;
+
+        // description of function args
+        std::vector<arg_t> args;
 
         // list of next nodes
         std::vector<std::pair<std::vector<std::string>, dispatch_node_t*>> next;
@@ -45,6 +57,22 @@ private:
             }
 
             return nullptr;
+        }
+
+        // searches flags
+        int flag(std::string flag) {
+            for(int i = 0; i < num_args; i++) {
+                if(args[i].flags.find(flag) != args[i].flags.end()) {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        // adds a default value for a certain argument
+        bool add_default(int idx, std::string default_value) {
+            args[idx].default_value = default_value;
         }
 
         // adds alias to next vector in node
@@ -82,13 +110,13 @@ private:
     }
 
     template<typename T>
-    std::any convert(std::string s) {
-        return conversions[typeid(T)](s);
+    T convert(std::string s) {
+        return std::any_cast<T>(conversions[typeid(T)](s));
     }
 
     template<typename ...Args, std::size_t ...I>
     std::tuple<Args...> vector_to_tuple_impl(std::vector<std::string> args, std::index_sequence<I...>) {
-        return std::make_tuple(std::any_cast<Args>(convert<Args>(args[I]))...);
+        return std::make_tuple(convert<Args>(args[I])...);
     }
 
     // convert vector of string to desired tuple of correct type
@@ -128,6 +156,11 @@ private:
         int idx;
         
         for(idx = 0; idx < path.size(); idx++) {
+            // value is a flag
+            if(path[idx][0] == '-') {
+                return {idx, cur};
+            }
+
             dispatch_node_t* next = cur->find(path[idx]);
 
             if(!next) {
@@ -157,15 +190,6 @@ private:
         return cur;
     }
 
-public:
-    Dispatcher() {
-        root = new dispatch_node_t();
-    }
-
-    ~Dispatcher() {
-        destructor_helper(root);
-    }
-
     template<int N, typename ...Args>
     void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
         dispatch_node_t* cur = traverse_drill(path);
@@ -188,6 +212,17 @@ public:
             std::apply(func, vector_to_tuple<N, Args...>(args));
         };
         cur->num_args = N;
+
+        cur->args.resize(N);
+    }
+
+public:
+    Dispatcher() {
+        root = new dispatch_node_t();
+    }
+
+    ~Dispatcher() {
+        destructor_helper(root);
     }
 
     // add nodes to command tree
@@ -203,17 +238,17 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout<<"command not found"<<std::endl;
+            std::cout << "command not found" << std::endl;
             return;
         }
 
         if(!(cur->execute)) {
-            std::cout<<cur->invalid_command<<std::endl;
+            std::cout << cur->invalid_command << std::endl;
             return;
         }
 
         if(!cur->check(args)) {
-            std::cout<<cur->invalid_args<<std::endl;
+            std::cout << cur->invalid_args << std::endl;
             return;
         }
 
@@ -222,21 +257,73 @@ public:
 
     // executes command based on command line input
     void execute_command(int argc, char* argv[]) {
-        std::vector<std::string> args(argc - 1);
+        std::vector<std::string> names(argc - 1);
         for(int i = 1; i < argc; i++) {
-            args[i - 1] = std::string(argv[i]);
+            names[i - 1] = std::string(argv[i]);
         }
 
-        auto [idx, cur] = traverse_until(args);
+        auto [idx, cur] = traverse_until(names);
 
         if(!(cur->execute)) {
-            std::cout<<cur->invalid_command<<std::endl;
+            std::cout << cur->invalid_command << std::endl;
             return;
         }
+        
+        names = std::vector<std::string>(names.begin() + idx, names.end());
 
-        args = std::vector<std::string>(args.begin() + idx, args.end());
+
+        std::vector<std::string> args(cur->num_args, "");
+
+        // find and update flags
+        for(int i = 0; i < names.size(); i++) {
+            int pref = 0;
+            bool is_flag = false;
+
+            std::string name = names[i];
+            while(pref < name.size() && name[pref] == '-') {
+                pref++;
+                is_flag = true;
+            }
+
+            if(!is_flag) continue;
+
+            name = name.substr(pref, name.size() - pref);
+
+            int idx = cur->flag(name);
+
+            if(idx == -1) {
+                std::cout << "flag not found" << std::endl;
+                return;
+            }
+
+            i++;
+            args[idx] = names[i];
+        }
+
+        // populate regular arguments
+        for(int i = 0, idx = 0; i < names.size(); i++) {
+            while(idx < args.size() && !args[idx].empty()) {
+                idx++;
+            }
+
+            std::string name = names[i];
+            if(name[0] == '-') {
+                i++;
+                continue;
+            }
+
+            args[idx] = name;
+        }
+
+        // fill in any defaults
+        for(int i = 0; i < args.size() && i < cur->args.size(); i++) {
+            if(args[i].empty()) {
+                args[i] = cur->args[i].default_value;
+            }
+        }
+
         if(!cur->check(args)) {
-            std::cout<<cur->invalid_args<<std::endl;
+            std::cout << cur->invalid_args << std::endl;
             return;
         }
 
@@ -256,12 +343,12 @@ public:
         dispatch_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
  
         if(!cur) {
-            std::cout<<"path not found"<<std::endl;
+            std::cout << "path not found" << std::endl;
             return;
         }
 
         if(!cur->alias(path[path.size() - 1], alias)) {
-            std::cout<<"path not found"<<std::endl;
+            std::cout << "path not found" << std::endl;
         }        
     }
 
@@ -270,10 +357,44 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout<<"path not found"<<std::endl;
+            std::cout << "path not found" << std::endl;
         }
 
         cur->set_invalid_args_message(msg);
+    }
+
+    // add a flag based on 0-indexed arguments for a command
+    void add_flag(std::vector<std::string> path, int idx, std::string flag) {
+        dispatch_node_t* cur = traverse_entire(path);
+
+        if(!cur) {
+            std::cout << "path not found" << std::endl;
+            return;
+        }
+
+        if(idx >= cur->num_args) {
+            std::cout << "index too large" << std::endl;
+            return;
+        }
+
+        cur->args[idx].flags.insert(flag);
+    }
+
+    // adds a default value
+    void add_default(std::vector<std::string> path, int idx, std::string default_value) {
+        dispatch_node_t* cur = traverse_entire(path);
+
+        if(!cur) {
+            std::cout << "path not found" << std::endl;
+            return;
+        }
+
+        if(idx >= cur->num_args) {
+            std::cout << "index too large" << std::endl;
+            return;
+        }
+
+        cur->add_default(idx, default_value);
     }
 
     // add a message for if a node lacks a command
@@ -281,7 +402,7 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout<<"path not found"<<std::endl;
+            std::cout << "path not found" << std::endl;
         }
 
         cur->set_invalid_command_message(msg);
