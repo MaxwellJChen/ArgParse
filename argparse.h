@@ -191,9 +191,10 @@ public:
     }
 
     // add nodes to command tree
-    template<int N, typename ...Args>
+    template<typename ...Args>
     void add_command(const std::vector<std::string> path, void (*func)(Args...)) {
         std::function<void(Args...)> wrapped = func;
+        static constexpr std::size_t N = sizeof...(Args);
         add_command_impl<N, Args...>(path, wrapped);
     }
 

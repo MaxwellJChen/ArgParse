@@ -33,7 +33,7 @@ TEST_F(ArgParseTests, SingleArgumentTest) {
         std::cout<<x * 2<<std::endl;
     };
 
-    ap.add_command<1, int>({"bar", "baz", "foo"}, func);
+    ap.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 5;
     char* argv[] = {"argparse", "bar", "baz", "foo", "500"};
@@ -48,7 +48,7 @@ TEST_F(ArgParseTests, MultiArgumentTest) {
     };
 
     ArgParse ap;
-    ap.add_command<3, int, float, double>({"bar", "baz", "foo"}, func);
+    ap.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 7;
     char* argv[] = {"argparse", "bar", "baz", "foo", "10", "12.3", "30.5013"};
@@ -70,7 +70,7 @@ TEST_F(ArgParseTests, CustomTypeTest) {
     ap.add_conversion<test_t>([](std::string s) {
         return test_t { stoi(s) };
     });
-    ap.add_command<1, test_t>({"test"}, func);
+    ap.add_command({"test"}, func);
 
     int argc = 3;
     char* argv[] = {"argparse", "test", "500"};
@@ -86,7 +86,7 @@ TEST_F(ArgParseTests, AliasTest) {
         std::cout<<x * 2<<std::endl;
     };
 
-    ap.add_command<1, int>({"bar", "baz", "foo"}, func);
+    ap.add_command({"bar", "baz", "foo"}, func);
     ap.add_alias({"bar"}, "b");
     ap.add_alias({"bar", "baz"}, "b");
     ap.add_alias({"bar", "baz", "foo"}, "f");
@@ -106,7 +106,7 @@ TEST_F(ArgParseTests, NoArgumentsTest) {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command<0>({"bar", "baz", "foo"}, func);
+    ap.add_command({"bar", "baz", "foo"}, func);
 
 
     int argc = 4;
@@ -129,9 +129,9 @@ TEST_F(ArgParseTests, MultipleFunctionsTest) {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command<1, int>({"foo", "bar", "func1"}, func1);
-    ap.add_command<3, int, float, double>({"foo", "bar", "func2"}, func2);
-    ap.add_command<0>({"func3"}, func3);
+    ap.add_command({"foo", "bar", "func1"}, func1);
+    ap.add_command({"foo", "bar", "func2"}, func2);
+    ap.add_command({"func3"}, func3);
 
     int argc = 5;
     char* argv1[] = {"argparse", "foo", "bar", "func1", "500"};
@@ -161,7 +161,7 @@ TEST_F(ArgParseTests, MissingFunctionTest) {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command<0>({"bar", "baz"}, func);
+    ap.add_command({"bar", "baz"}, func);
     
     int argc = 2;
     char* argv[] = {"argparse", "bar"};
@@ -177,7 +177,7 @@ TEST_F(ArgParseTests, MissingCommandTest) {
         std::cout<<"test"<<std::endl;
     };
 
-    ap.add_command<0>({"bar", "baz"}, func);
+    ap.add_command({"bar", "baz"}, func);
     
     int argc = 4;
     char* argv[] = {"argparse", "foo", "bar", "baz"};
@@ -193,7 +193,7 @@ TEST_F(ArgParseTests, InvalidArgsTest) {
         std::cout<<s<<std::endl;
     };
 
-    ap.add_command<1, long double>({"test"}, func);
+    ap.add_command({"test"}, func);
     ap.add_invalid_args_message({"test"}, "updated message");
 
     int argc = 2;
