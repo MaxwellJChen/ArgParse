@@ -254,3 +254,20 @@ TEST_F(DispatcherTests, DefaultFlagTest) {
     
     EXPECT_EQ(output_buffer.str(), "30\n");
 }
+
+TEST_F(DispatcherTests, ValueFlagTest) {
+    Dispatcher d;
+
+    void (*func)(int, int) = [](int x, int y) {
+        std::cout<<x + y<<std::endl;
+    };
+
+    d.add_command({"test"}, func);
+    d.add_flag({"test"}, 1, "y", "500");
+
+    int argc = 4;
+    char* argv[] = {"Dispatcher", "test", "-y", "10"};
+    d.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "510\n");
+}

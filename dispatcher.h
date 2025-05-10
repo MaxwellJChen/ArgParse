@@ -19,6 +19,8 @@ private:
         // flag used to specify value for this argument
         std::unordered_set<std::string> flags;
 
+        std::unordered_map<std::string, std::string> value_flags;
+
         std::string default_value;
     };
 
@@ -60,14 +62,18 @@ private:
         }
 
         // searches flags
-        int flag(std::string flag) {
+        std::pair<int, std::string> flag(std::string flag) {
             for(int i = 0; i < num_args; i++) {
                 if(args[i].flags.find(flag) != args[i].flags.end()) {
-                    return i;
+                    return {i, ""};
+                }
+
+                if(args[i].value_flags.find(flag) != args[i].value_flags.end()) {
+                    return {i, args[i].value_flags[flag]};
                 }
             }
 
-            return -1;
+            return {-1, ""};
         }
 
         // adds a default value for a certain argument
@@ -274,6 +280,8 @@ public:
 
         std::vector<std::string> args(cur->num_args, "");
 
+        std::vector<bool> flags(args.size());
+
         // find and update flags
         for(int i = 0; i < names.size(); i++) {
             int pref = 0;
@@ -289,30 +297,33 @@ public:
 
             name = name.substr(pref, name.size() - pref);
 
-            int idx = cur->flag(name);
+            auto [idx, value] = cur->flag(name);
 
             if(idx == -1) {
                 std::cout << "flag not found" << std::endl;
                 return;
             }
 
-            i++;
-            args[idx] = names[i];
+            flags[i] = true;
+            if(value.empty()) {
+                i++;
+                flags[i] = true;
+                args[idx] = names[i];
+            }
+            else {
+                args[idx] = value;
+            }
         }
 
         // populate regular arguments
         for(int i = 0, idx = 0; i < names.size(); i++) {
+            if(flags[i]) continue;
+
             while(idx < args.size() && !args[idx].empty()) {
                 idx++;
             }
 
-            std::string name = names[i];
-            if(name[0] == '-') {
-                i++;
-                continue;
-            }
-
-            args[idx] = name;
+            args[idx] = names[i];
         }
 
         // fill in any defaults
@@ -379,6 +390,23 @@ public:
 
         cur->args[idx].flags.insert(flag);
     }
+
+        // add a flag based on 0-indexed arguments for a command
+        void add_flag(std::vector<std::string> path, int idx, std::string flag, std::string value) {
+            dispatch_node_t* cur = traverse_entire(path);
+    
+            if(!cur) {
+                std::cout << "path not found" << std::endl;
+                return;
+            }
+    
+            if(idx >= cur->num_args) {
+                std::cout << "index too large" << std::endl;
+                return;
+            }
+    
+            cur->args[idx].value_flags[flag] = value;
+        }
 
     // adds a default value
     void add_default(std::vector<std::string> path, int idx, std::string default_value) {
