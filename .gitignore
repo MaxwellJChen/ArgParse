@@ -1,3 +1,5 @@
 .vscode/
 **/build/
 **/Testing/
+main.cpp
+main

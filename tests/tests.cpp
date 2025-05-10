@@ -67,7 +67,7 @@ TEST_F(DispatcherTests, CustomTypeTest) {
     };
 
     Dispatcher d;
-    d.add_conversion<test_t>([](std::string s) {
+    d.add_conversion<test_t>([](std::string s) -> test_t {
         return test_t { stoi(s) };
     });
     d.add_command({"test"}, func);
