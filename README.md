@@ -1,7 +1,7 @@
 # CLI Dispatcher: C++ CLI Argument Parser & Function Dispatcher
 
 ## Capabilities
-Dispatcher is a helper class which simplifies CLI development by handling command execution and argument parsing/casting under-the-hood. Completely eliminate the nested ifs and switch statements to route to the proper command, alongside the logic to cast and execute afterwards.
+Typically, extensive if statements and switch cases are needed to route to the correct command in CLI development, after which, error handling and casting must also be programmed by the developer. Dispatcher is a helper class which completely eliminates this overhead by handling command execution and argument parsing under-the-hood. 
 - Calls the correct method based on inputted strings
 - Casts method arguments to any user-defined type
 - Accepts any method as long as static or free methods with void return type
