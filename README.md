@@ -7,7 +7,7 @@ Typically, extensive if statements and switch cases are needed to route to the c
 - Accepts any method as long as static or free methods with void return type
 - Supports aliasing and customizable error messages
 - Stored in a single header file
-- Supports flags and default argument values **[in progress]**
+- Supports flags and default argument values
 
 ## Usage
 
@@ -93,15 +93,19 @@ The core of Dispatcher is the idea of a "path". Every command a CLI accepts cons
 
 ```void add_command(std::vector<std::string> path, void (*func)(A...))```: Add a method to the Dispatcher object. Users must specify the path needed to reach the function along with a pointer to the function itself. Again, the function must return void and be free or static.
 
+```void execute_command(int argc, char* argv[])```: Executes function based on CLI input.
+
 ```void add_alias(std::vector<std::string> path, std::string alias)```: Add an alias for the final string in a path.
 
 ```void add_invalid_args_message(std::vector<std::string> path, std::string msg)```: Add an error message if the method defined by the path fails to cast its arguments.
 
 ```void add_invalid_command_message(std::vector<std::string> path, std::string msg)```: Add an error message if there is no method at the defined path.
 
-```void add_conversion(std::function<T(std::string)> convert)```: Add a conversion for a custom, user-defined type
+```void add_conversion(std::function<T(std::string)> convert)```: Add a conversion for a custom, user-defined type.
 
-Support for flags is still in development.
+```void add_flag(std::vector<std::string> path, int idx, std::string flag)```: Adds a flag specifying a position.
+
+```void add_default(std::vector<std::string> path, int idx, std::string default_value)```: Adds a default value for a certain argument in a command.
 
 ## Under-The-Hood
 The main obstacle to Dispatcher is finding a way to store heterogenous functions, accepting potentially any type, and properly casting input strings to the correct arguments (or failing). This was achieved with ```std::any```, variadic templates, and lambdas. Custom conversions are implemented with a hash map which accepts a ```std::type_index``` object and returns the proper conversion.
