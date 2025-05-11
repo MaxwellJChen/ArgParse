@@ -12,7 +12,6 @@
 #include <utility>
 #include <vector>
 
-
 /**
  * @class Dispatcher
  * @brief Handles CLI routing logic under-the-hood.
@@ -45,9 +44,9 @@ private:
 
         std::vector<std::pair<std::vector<std::string>, dispatch_node_t*>> next; ///< List of next nodes with path names and aliases.
 
-        std::string invalid_command = "command not found"; ///< Invalid command message.
+        std::string invalid_command = ""; ///< Invalid command message.
 
-        std::string invalid_args = "invalid arguments"; ///< Invalid arguments message.
+        std::string invalid_args = ""; ///< Invalid arguments message.
 
         /**
          * @brief Searches next nodes for a given name.
@@ -204,6 +203,10 @@ private:
         {typeid(std::string), [](std::string s) { return s; }}
     };
 
+    std::string invalid_args = "Invalid arguments."; ///< Default invalid arguments message.
+
+    std::string invalid_command = "Command does not exist."; ///< Default invalid command message.
+
     /**
      * @brief Traverses the entire path.
      * 
@@ -318,6 +321,23 @@ private:
         return s.size();
     }
 
+    std::string path_to_str(std::vector<std::string>& path) {
+        std::string path_str = path[0];
+        for(int i = 1; i < path.size(); i++) {
+            path_str.append(' ' + path[i]);
+        }
+
+        return path_str;
+    }
+
+    void path_failed(std::vector<std::string>& path) {
+        throw std::logic_error("Failed to find path " + path_to_str(path));
+    }
+
+    void index_failed(int idx, int num_args) {
+        throw std::logic_error("Provided index " + std::to_string(idx) + " too large for " + std::to_string(num_args) + " arguments.");
+    }
+
 public:
     /**
      * @brief Constructor for Dispatcher class.
@@ -362,7 +382,12 @@ public:
         auto [idx, cur] = traverse_until(names);
 
         if(!(cur->execute)) {
-            std::cout << cur->invalid_command << std::endl;
+            if(cur->invalid_command.empty()) {
+                std::cout << invalid_command << std::endl;
+            }
+            else {
+                std::cout << cur->invalid_command << std::endl;
+            }
             return;
         }
         
@@ -379,13 +404,19 @@ public:
             auto [idx, value] = cur->find_flag(names[i]);
 
             if(idx == -1) {
-                std::cout << "flag not found" << std::endl;
+                std::cout << "Failed to find flag " + names[i] + '.' << std::endl;
                 return;
             }
 
             flags[i] = true;
             if(!value.has_value()) {
                 i++;
+
+                if(i >= names.size()) {
+                    std::cout<<"Positional flag " + names[i] + " lacks argument" << std::endl;
+                    return;
+                }
+
                 flags[i] = true;
                 args[idx].first = names[i];
             }
@@ -413,7 +444,12 @@ public:
         }
 
         if(!cur->check(args)) {
-            std::cout << cur->invalid_args << std::endl;
+            if(cur->invalid_args.empty()) {
+                std::cout << invalid_args << std::endl;
+            }
+            else {
+                std::cout << cur->invalid_args << std::endl;
+            }
             return;
         }
 
@@ -451,15 +487,14 @@ public:
      */
     void add_alias(std::vector<std::string> path, std::string alias) {
         dispatch_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
- 
+        
         if(!cur) {
-            std::cout << "path not found" << std::endl;
-            return;
+            path_failed(path);
         }
 
         if(!cur->add_alias(path[path.size() - 1], alias)) {
-            std::cout << "path not found" << std::endl;
-        }        
+            throw std::logic_error("Failed to alias " + alias + "on " + path[path.size() - 1] + '.');
+        }
     }
 
     /**
@@ -473,13 +508,11 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout << "path not found" << std::endl;
-            return;
+            path_failed(path);
         }
 
         if(idx >= cur->num_args) {
-            std::cout << "index too large" << std::endl;
-            return;
+            index_failed(idx, cur->num_args);
         }
 
         cur->args[idx].flags[flag];
@@ -498,13 +531,11 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout << "path not found" << std::endl;
-            return;
+            path_failed(path);
         }
 
         if(idx >= cur->num_args) {
-            std::cout << "index too large" << std::endl;
-            return;
+            index_failed(idx, cur->num_args);
         }
 
         cur->args[idx].flags[flag] = value;
@@ -522,13 +553,11 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout << "path not found" << std::endl;
-            return;
+            path_failed(path);
         }
 
         if(idx >= cur->num_args) {
-            std::cout << "index too large" << std::endl;
-            return;
+            index_failed(idx, cur->num_args);
         }
 
         cur->add_default(idx, def);
@@ -544,7 +573,7 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout << "path not found" << std::endl;
+            path_failed(path);
         }
 
         cur->set_invalid_args_message(msg);
@@ -560,7 +589,7 @@ public:
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
-            std::cout << "path not found" << std::endl;
+            path_failed(path);
         }
 
         cur->set_invalid_command_message(msg);
