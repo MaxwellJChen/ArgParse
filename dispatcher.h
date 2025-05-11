@@ -25,9 +25,9 @@ private:
      * @brief Encodes information about a function argument.
      */
     struct arg_t {
-        std::unordered_map<std::string, std::string> flags; ///< Set of flags which specify a specific argument configuration.
+        std::unordered_map<std::string, std::any> flags; ///< Set of flags which specify a specific argument configuration.
 
-        std::string def; ///< Possible default value if no other values are added.
+        std::any def; ///< Possible default value if no other values are added.
     };
 
     /**
@@ -35,9 +35,9 @@ private:
      * @brief All the information for a specific position in a path, including a method to execute, error messages, flags, etc.
      */
     struct dispatch_node_t {
-        std::function<void(std::vector<std::string>)> execute; ///< Wrapper function to execute arguments on previously provided function.
+        std::function<void(std::vector<std::pair<std::string, std::any>>)> execute; ///< Wrapper function to execute arguments on previously provided function.
 
-        std::function<bool(std::vector<std::string>)> check; ///< Checks if arguments can be converted to the correct types.
+        std::function<bool(std::vector<std::pair<std::string, std::any>>)> check; ///< Checks if arguments can be converted to the correct types.
 
         int num_args; ///< The number of arguments for a function.
 
@@ -76,14 +76,14 @@ private:
          * @return The index of the argument with the flag, and a default value if available. 
          *         Returns {-1, ""} if no flag was found.
          */
-        std::pair<int, std::string> find_flag(std::string flag) {
+        std::pair<int, std::any> find_flag(std::string flag) {
             for(int i = 0; i < num_args; i++) {
                 if(args[i].flags.find(flag) != args[i].flags.end()) {
                     return {i, args[i].flags[flag]};
                 }
             }
 
-            return {-1, ""};
+            return {-1, std::any()};
         }
 
         /**
@@ -92,7 +92,7 @@ private:
          * @param idx The index of the argument to add the new default value for.
          * @param def The string version of the default value to add.
          */
-        void add_default(int idx, std::string def) {
+        void add_default(int idx, std::any def) {
             args[idx].def = def;
         }
 
@@ -158,8 +158,11 @@ private:
      * @return The converted value.
      */
     template<typename T>
-    T convert(std::string s) {
-        return std::any_cast<T>(conversions[typeid(T)](s));
+    T convert(std::pair<std::string, std::any> arg) {
+        if(arg.first.empty()) {
+            return std::any_cast<T>(arg.second);
+        }
+        return std::any_cast<T>(conversions[typeid(T)](arg.first));
     }
 
     /**
@@ -172,7 +175,7 @@ private:
      * @return The final tuple after conversions are completed.
      */
     template<typename ...Args, std::size_t ...I>
-    std::tuple<Args...> vector_to_tuple_impl(std::vector<std::string> args, std::index_sequence<I...> seq) {
+    std::tuple<Args...> vector_to_tuple_impl(std::vector<std::pair<std::string, std::any>> args, std::index_sequence<I...> seq) {
         return std::make_tuple(convert<Args>(args[I])...);
     }
 
@@ -185,7 +188,7 @@ private:
      * @return The final tuple after conversions are completed.
      */
     template<int N, typename ...Args>
-    std::tuple<Args...> vector_to_tuple(std::vector<std::string> args) {
+    std::tuple<Args...> vector_to_tuple(std::vector<std::pair<std::string, std::any>> args) {
         return vector_to_tuple_impl<Args...>(args, std::make_index_sequence<N>{});
     }
 
@@ -281,7 +284,7 @@ private:
     void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
         dispatch_node_t* cur = traverse_drill(path);
 
-        cur->check = [this](std::vector<std::string> args) {
+        cur->check = [this](std::vector<std::pair<std::string, std::any>> args) {
             if(args.size() != N) {
                 return false;
             }
@@ -295,12 +298,24 @@ private:
             }
         };
 
-        cur->execute = [func, this](std::vector<std::string> args) {
+        cur->execute = [func, this](std::vector<std::pair<std::string, std::any>> args) {
             std::apply(func, vector_to_tuple<N, Args...>(args));
         };
         cur->num_args = N;
 
         cur->args.resize(N);
+    }
+
+    int trim_flag(std::string& s) {
+        for(int i = 0; i < s.size(); i++) {
+            if(s[i] != '-') {
+                s = s.substr(i, s.size() - i);
+                return i;
+                break;
+            }
+        }
+
+        return s.size();
     }
 
 public:
@@ -353,27 +368,15 @@ public:
         
         names = std::vector<std::string>(names.begin() + idx, names.end());
 
-
-        std::vector<std::string> args(cur->num_args, "");
+        std::vector<std::pair<std::string, std::any>> args(cur->num_args);
 
         std::vector<bool> flags(args.size());
 
         // find and update flags
         for(int i = 0; i < names.size(); i++) {
-            int pref = 0;
-            bool is_flag = false;
+            if(!trim_flag(names[i])) continue;
 
-            std::string name = names[i];
-            while(pref < name.size() && name[pref] == '-') {
-                pref++;
-                is_flag = true;
-            }
-
-            if(!is_flag) continue;
-
-            name = name.substr(pref, name.size() - pref);
-
-            auto [idx, value] = cur->find_flag(name);
+            auto [idx, value] = cur->find_flag(names[i]);
 
             if(idx == -1) {
                 std::cout << "flag not found" << std::endl;
@@ -381,13 +384,13 @@ public:
             }
 
             flags[i] = true;
-            if(value.empty()) {
+            if(!value.has_value()) {
                 i++;
                 flags[i] = true;
-                args[idx] = names[i];
+                args[idx].first = names[i];
             }
             else {
-                args[idx] = value;
+                args[idx].second = value;
             }
         }
 
@@ -395,17 +398,17 @@ public:
         for(int i = 0, idx = 0; i < names.size(); i++) {
             if(flags[i]) continue;
 
-            while(idx < args.size() && !args[idx].empty()) {
+            while(idx < args.size() && !args[idx].first.empty()) {
                 idx++;
             }
 
-            args[idx] = names[i];
+            args[idx].first = names[i];
         }
 
         // fill in any defaults
         for(int i = 0; i < args.size() && i < cur->args.size(); i++) {
-            if(args[i].empty()) {
-                args[i] = cur->args[i].def;
+            if(args[i].first.empty() && !args[i].second.has_value()) {
+                args[i].second = cur->args[i].def;
             }
         }
 
@@ -479,7 +482,7 @@ public:
             return;
         }
 
-        cur->args[idx].flags[flag] = "";
+        cur->args[idx].flags[flag];
     }
 
     /**
@@ -490,7 +493,8 @@ public:
      * @param flag The value of the flag to add.
      * @param value The value the flag corresponds to.
      */
-    void add_value_flag(std::vector<std::string> path, int idx, std::string flag, std::string value) {
+    template<typename T>
+    void add_value_flag(std::vector<std::string> path, int idx, std::string flag, T value) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -513,7 +517,8 @@ public:
      * @param idx The index of the argument to update.
      * @param def The new default value to update the argument with.
      */
-    void add_default(std::vector<std::string> path, int idx, std::string def) {
+    template<typename T>
+    void add_default(std::vector<std::string> path, int idx, T def) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {

@@ -228,7 +228,7 @@ TEST_F(DispatcherTests, DefaultTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_default({"test"}, 1, "300");
+    d.add_default({"test"}, 1, 300);
 
     int argc = 3;
     const char* argv[] = {"Dispatcher", "test", "10"};
@@ -246,7 +246,7 @@ TEST_F(DispatcherTests, DefaultFlagTest) {
 
     d.add_command({"test"}, func);
     d.add_positional_flag({"test"}, 1, "y");
-    d.add_default({"test"}, 0, "20");
+    d.add_default({"test"}, 0, 20);
 
     int argc = 4;
     const char* argv[] = {"Dispatcher", "test", "-y", "10"};
@@ -263,7 +263,7 @@ TEST_F(DispatcherTests, ValueFlagTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_value_flag({"test"}, 1, "y", "500");
+    d.add_value_flag({"test"}, 1, "y", 500);
 
     int argc = 4;
     const char* argv[] = {"Dispatcher", "test", "-y", "10"};
