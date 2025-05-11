@@ -25,11 +25,9 @@ private:
      * @brief Encodes information about a function argument.
      */
     struct arg_t {
-        std::unordered_set<std::string> flags; ///< Set of flags used to specify value for this argument.
+        std::unordered_map<std::string, std::string> flags; ///< Set of flags which specify a specific argument configuration.
 
-        std::unordered_map<std::string, std::string> value_flags; ///< Set of flags which specify a specific argument configuration.
-
-        std::string default_value; ///< Possible default value if no other values are added.
+        std::string def; ///< Possible default value if no other values are added.
     };
 
     /**
@@ -57,7 +55,7 @@ private:
          * @param name The path value indicating the next node.
          * @return A pointer to the next node or nullptr if no next node was found.
          */
-        dispatch_node_t* find(std::string name) {
+        dispatch_node_t* find_next(std::string name) {
             for(int i = 0; i < next.size(); i++) {
                 std::vector<std::string>& names = next[i].first;
 
@@ -78,14 +76,10 @@ private:
          * @return The index of the argument with the flag, and a default value if available. 
          *         Returns {-1, ""} if no flag was found.
          */
-        std::pair<int, std::string> flag(std::string flag) {
+        std::pair<int, std::string> find_flag(std::string flag) {
             for(int i = 0; i < num_args; i++) {
                 if(args[i].flags.find(flag) != args[i].flags.end()) {
-                    return {i, ""};
-                }
-
-                if(args[i].value_flags.find(flag) != args[i].value_flags.end()) {
-                    return {i, args[i].value_flags[flag]};
+                    return {i, args[i].flags[flag]};
                 }
             }
 
@@ -96,10 +90,10 @@ private:
          * @brief Adds a default value for a certain argument.
          * 
          * @param idx The index of the argument to add the new default value for.
-         * @param default_value The string version of the default value to add.
+         * @param def The string version of the default value to add.
          */
-        void add_default(int idx, std::string default_value) {
-            args[idx].default_value = default_value;
+        void add_default(int idx, std::string def) {
+            args[idx].def = def;
         }
 
         /**
@@ -109,7 +103,7 @@ private:
          * @param alias The alias to add to the next value.
          * @return Whether the alias was successfully added.
          */
-        bool alias(std::string name, std::string alias) {
+        bool add_alias(std::string name, std::string alias) {
             for(int i = 0; i < next.size(); i++) {
                 std::vector<std::string>& names = next[i].first;
     
@@ -216,7 +210,7 @@ private:
     dispatch_node_t* traverse_entire(std::vector<std::string> path) {
         dispatch_node_t* cur = root;
         for(std::string& name : path) {
-            cur = cur->find(name);
+            cur = cur->find_next(name);
 
             if(!cur) {
                 return nullptr;
@@ -241,7 +235,7 @@ private:
                 return {idx, cur};
             }
 
-            dispatch_node_t* next = cur->find(path[idx]);
+            dispatch_node_t* next = cur->find_next(path[idx]);
 
             if(!next) {
                 return {idx, cur};
@@ -262,7 +256,7 @@ private:
     dispatch_node_t* traverse_drill(std::vector<std::string> path) {
         dispatch_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
-            dispatch_node_t* next = cur->find(path[i]);
+            dispatch_node_t* next = cur->find_next(path[i]);
 
             if(!next) {
                 next = new dispatch_node_t();
@@ -339,39 +333,12 @@ public:
     }
 
     /**
-     * @brief Executes a command based on a path and provided arguments.
-     * 
-     * @param path The path of the command to execute.
-     * @param args The arguments to execute the final command on.
-     */
-    void execute_command(const std::vector<std::string> path, const std::vector<std::string> args) {
-        dispatch_node_t* cur = traverse_entire(path);
-
-        if(!cur) {
-            std::cout << "command not found" << std::endl;
-            return;
-        }
-
-        if(!(cur->execute)) {
-            std::cout << cur->invalid_command << std::endl;
-            return;
-        }
-
-        if(!cur->check(args)) {
-            std::cout << cur->invalid_args << std::endl;
-            return;
-        }
-
-        cur->execute(args);
-    }
-
-    /**
      * @brief Executes a command based on typical command line input.
      * 
      * @param argc The number of provided strings.
      * @param argv The array of provided strings.
      */
-    void execute_command(int argc, char* argv[]) {
+    void execute_command(int argc, const char* argv[]) {
         std::vector<std::string> names(argc - 1);
         for(int i = 1; i < argc; i++) {
             names[i - 1] = std::string(argv[i]);
@@ -406,7 +373,7 @@ public:
 
             name = name.substr(pref, name.size() - pref);
 
-            auto [idx, value] = cur->flag(name);
+            auto [idx, value] = cur->find_flag(name);
 
             if(idx == -1) {
                 std::cout << "flag not found" << std::endl;
@@ -438,7 +405,7 @@ public:
         // fill in any defaults
         for(int i = 0; i < args.size() && i < cur->args.size(); i++) {
             if(args[i].empty()) {
-                args[i] = cur->args[i].default_value;
+                args[i] = cur->args[i].def;
             }
         }
 
@@ -448,6 +415,16 @@ public:
         }
 
         cur->execute(args);
+    }
+
+    /**
+     * @brief Executes a command based on typical command line input.
+     * 
+     * @param argc The number of provided strings.
+     * @param argv The array of provided strings.
+     */
+    void execute_command(int argc, char* argv[]) {
+        execute_command(argc, const_cast<const char**>(argv));
     }
 
     /**
@@ -477,7 +454,7 @@ public:
             return;
         }
 
-        if(!cur->alias(path[path.size() - 1], alias)) {
+        if(!cur->add_alias(path[path.size() - 1], alias)) {
             std::cout << "path not found" << std::endl;
         }        
     }
@@ -489,7 +466,7 @@ public:
      * @param idx The index of the argument to update with the flag.
      * @param flag The value of the flag to add.
      */
-    void add_flag(std::vector<std::string> path, int idx, std::string flag) {
+    void add_positional_flag(std::vector<std::string> path, int idx, std::string flag) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -502,7 +479,7 @@ public:
             return;
         }
 
-        cur->args[idx].flags.insert(flag);
+        cur->args[idx].flags[flag] = "";
     }
 
     /**
@@ -513,7 +490,7 @@ public:
      * @param flag The value of the flag to add.
      * @param value The value the flag corresponds to.
      */
-    void add_flag(std::vector<std::string> path, int idx, std::string flag, std::string value) {
+    void add_value_flag(std::vector<std::string> path, int idx, std::string flag, std::string value) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -526,7 +503,7 @@ public:
             return;
         }
 
-        cur->args[idx].value_flags[flag] = value;
+        cur->args[idx].flags[flag] = value;
     }
 
     /**
@@ -534,9 +511,9 @@ public:
      * 
      * @param path The path specifying the node to update.
      * @param idx The index of the argument to update.
-     * @param default_value The new default value to update the argument with.
+     * @param def The new default value to update the argument with.
      */
-    void add_default(std::vector<std::string> path, int idx, std::string default_value) {
+    void add_default(std::vector<std::string> path, int idx, std::string def) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -549,7 +526,7 @@ public:
             return;
         }
 
-        cur->add_default(idx, default_value);
+        cur->add_default(idx, def);
     }
 
     /**

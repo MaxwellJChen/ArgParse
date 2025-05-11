@@ -36,7 +36,7 @@ TEST_F(DispatcherTests, SingleArgumentTest) {
     d.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 5;
-    char* argv[] = {"Dispatcher", "bar", "baz", "foo", "500"};
+    const char* argv[] = {"Dispatcher", "bar", "baz", "foo", "500"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
@@ -51,7 +51,7 @@ TEST_F(DispatcherTests, MultiArgumentTest) {
     d.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 7;
-    char* argv[] = {"Dispatcher", "bar", "baz", "foo", "10", "12.3", "30.5013"};
+    const char* argv[] = {"Dispatcher", "bar", "baz", "foo", "10", "12.3", "30.5013"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "385.166\n");
@@ -73,7 +73,7 @@ TEST_F(DispatcherTests, CustomTypeTest) {
     d.add_command({"test"}, func);
 
     int argc = 3;
-    char* argv[] = {"Dispatcher", "test", "500"};
+    const char* argv[] = {"Dispatcher", "test", "500"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
@@ -93,7 +93,7 @@ TEST_F(DispatcherTests, AliasTest) {
 
 
     int argc = 5;
-    char* argv[] = {"Dispatcher", "b", "b", "f", "500"};
+    const char* argv[] = {"Dispatcher", "b", "b", "f", "500"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "1000\n");
@@ -110,7 +110,7 @@ TEST_F(DispatcherTests, NoArgumentsTest) {
 
 
     int argc = 4;
-    char* argv[] = {"Dispatcher", "bar", "baz", "foo"};
+    const char* argv[] = {"Dispatcher", "bar", "baz", "foo"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "test\n");
@@ -134,21 +134,21 @@ TEST_F(DispatcherTests, MultipleFunctionsTest) {
     d.add_command({"func3"}, func3);
 
     int argc = 5;
-    char* argv1[] = {"Dispatcher", "foo", "bar", "func1", "500"};
+    const char* argv1[] = {"Dispatcher", "foo", "bar", "func1", "500"};
     d.execute_command(argc, argv1);
     EXPECT_EQ(output_buffer.str(), "1000\n");
     output_buffer.str("");
     output_buffer.clear();
 
     argc = 7;
-    char* argv2[] = {"Dispatcher", "foo", "bar", "func2", "10", "12.3", "30.5013"};
+    const char* argv2[] = {"Dispatcher", "foo", "bar", "func2", "10", "12.3", "30.5013"};
     d.execute_command(argc, argv2);
     EXPECT_EQ(output_buffer.str(), "385.166\n");
     output_buffer.str("");
     output_buffer.clear();
 
     argc = 2;
-    char* argv3[] = {"Dispatcher", "func3"};
+    const char* argv3[] = {"Dispatcher", "func3"};
     d.execute_command(argc, argv3);
 
     EXPECT_EQ(output_buffer.str(), "test\n");
@@ -164,7 +164,7 @@ TEST_F(DispatcherTests, MissingFunctionTest) {
     d.add_command({"bar", "baz"}, func);
     
     int argc = 2;
-    char* argv[] = {"Dispatcher", "bar"};
+    const char* argv[] = {"Dispatcher", "bar"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "command not found\n");
@@ -180,7 +180,7 @@ TEST_F(DispatcherTests, MissingCommandTest) {
     d.add_command({"bar", "baz"}, func);
     
     int argc = 4;
-    char* argv[] = {"Dispatcher", "foo", "bar", "baz"};
+    const char* argv[] = {"Dispatcher", "foo", "bar", "baz"};
     d.execute_command(argc, argv);
 
     EXPECT_EQ(output_buffer.str(), "command not found\n");
@@ -197,7 +197,7 @@ TEST_F(DispatcherTests, InvalidArgsTest) {
     d.add_invalid_args_message({"test"}, "updated message");
 
     int argc = 3;
-    char* argv[] = {"Dispatcher", "test", "10"};
+    const char* argv[] = {"Dispatcher", "test", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "updated message\n");
@@ -211,10 +211,10 @@ TEST_F(DispatcherTests, FlagTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_flag({"test"}, 1, "y");
+    d.add_positional_flag({"test"}, 1, "y");
 
     int argc = 5;
-    char* argv[] = {"Dispatcher", "test", "-y", "20", "10"};
+    const char* argv[] = {"Dispatcher", "test", "-y", "20", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "30\n");
@@ -231,7 +231,7 @@ TEST_F(DispatcherTests, DefaultTest) {
     d.add_default({"test"}, 1, "300");
 
     int argc = 3;
-    char* argv[] = {"Dispatcher", "test", "10"};
+    const char* argv[] = {"Dispatcher", "test", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "310\n");
@@ -245,11 +245,11 @@ TEST_F(DispatcherTests, DefaultFlagTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_flag({"test"}, 1, "y");
+    d.add_positional_flag({"test"}, 1, "y");
     d.add_default({"test"}, 0, "20");
 
     int argc = 4;
-    char* argv[] = {"Dispatcher", "test", "-y", "10"};
+    const char* argv[] = {"Dispatcher", "test", "-y", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "30\n");
@@ -263,10 +263,10 @@ TEST_F(DispatcherTests, ValueFlagTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_flag({"test"}, 1, "y", "500");
+    d.add_value_flag({"test"}, 1, "y", "500");
 
     int argc = 4;
-    char* argv[] = {"Dispatcher", "test", "-y", "10"};
+    const char* argv[] = {"Dispatcher", "test", "-y", "10"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "510\n");
