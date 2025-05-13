@@ -167,7 +167,7 @@ TEST_F(DispatcherTests, MissingFunctionTest) {
     const char* argv[] = {"Dispatcher", "bar"};
     d.execute_command(argc, argv);
 
-    EXPECT_EQ(output_buffer.str(), "command not found\n");
+    EXPECT_EQ(output_buffer.str(), "Unknown command: Dispatcher bar \"\"\n\nPossible commands are:\n\tbaz\n\n");
 }
 
 TEST_F(DispatcherTests, MissingCommandTest) {
@@ -183,7 +183,7 @@ TEST_F(DispatcherTests, MissingCommandTest) {
     const char* argv[] = {"Dispatcher", "foo", "bar", "baz"};
     d.execute_command(argc, argv);
 
-    EXPECT_EQ(output_buffer.str(), "command not found\n");
+    EXPECT_EQ(output_buffer.str(), "Unknown command: Dispatcher \"foo\"\n\nPossible commands are:\n\tbar\n\n");
 }
 
 TEST_F(DispatcherTests, InvalidArgsTest) {
