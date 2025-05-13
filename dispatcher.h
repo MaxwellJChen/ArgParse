@@ -1,5 +1,5 @@
-#ifndef ARGPARSE_H
-#define ARGPARSE_H
+#ifndef DISPATCHER_H
+#define DISPATCHER_H
 
 #include <any>
 #include <functional>
