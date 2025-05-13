@@ -4,6 +4,7 @@
 #include <any>
 #include <functional>
 #include <iostream>
+#include <span>
 #include <string>
 #include <tuple>
 #include <typeindex>
@@ -165,7 +166,7 @@ private:
     }
 
     static void path_failed(std::vector<std::string>& path) {
-        throw std::logic_error("Failed to find path " + path_to_str(path));
+        throw std::logic_error("Failed to find path: " + path_to_str(path));
     }
 
     static void index_failed(int idx, int num_args) {
@@ -178,7 +179,7 @@ private:
             cur = cur->find_next(name);
 
             if(!cur) {
-                return nullptr;
+                throw std::logic_error("Failed to find path: " + path_to_str(path));
             }
         }
 
@@ -367,6 +368,7 @@ public:
     }
 
     void execute_command(int argc, const char* argv[]) {
+        // get proper dispatch node
         std::vector<std::string> names(argc - 1);
         for(int i = 1; i < argc; i++) {
             names[i - 1] = std::string(argv[i]);
@@ -374,7 +376,7 @@ public:
 
         auto [idx, cur] = traverse_until(names);
 
-
+        // check if node can execute
         if(!(cur->execute)) {
             if(cur->invalid_command_func) {
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
@@ -452,13 +454,14 @@ public:
             args[idx].first = names[i];
         }
 
-        // fill in any defaults
+        // fill in default values
         for(int i = 0; i < args.size() && i < cur->args.size(); i++) {
             if(args[i].first.empty() && !args[i].second.has_value()) {
                 args[i].second = cur->args[i].def;
             }
         }
 
+        // check arguments
         if(!cur->check(args)) {
             if(cur->invalid_args_func) {
                 std::vector<bool> converted(args.size(), false);
@@ -514,6 +517,7 @@ public:
             return;
         }
 
+        // execute method
         cur->execute(args);
     }
 
@@ -573,10 +577,6 @@ public:
     void add_default(std::vector<std::string> path, int idx, T def) {
         dispatch_node_t* cur = traverse_entire(path);
 
-        if(!cur) {
-            path_failed(path);
-        }
-
         if(idx >= cur->num_args) {
             index_failed(idx, cur->num_args);
         }
@@ -587,19 +587,11 @@ public:
     void add_target_invalid_args_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
 
-        if(!cur) {
-            path_failed(path);
-        }
-
         cur->set_invalid_args_message(msg);
     }
 
     void add_target_invalid_command_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
-
-        if(!cur) {
-            path_failed(path);
-        }
 
         cur->set_invalid_command_message(msg);
     }
@@ -615,19 +607,11 @@ public:
     void add_target_invalid_args_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
         dispatch_node_t* cur = traverse_entire(path);
 
-        if(!cur) {
-            path_failed(path);
-        }
-
         cur->invalid_args_func = func;
     }
 
     void add_target_invalid_command_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
         dispatch_node_t* cur = traverse_entire(path);
-
-        if(!cur) {
-            path_failed(path);
-        }
 
         cur->invalid_command_func = func;
     }
@@ -638,6 +622,16 @@ public:
 
     void add_default_invalid_command_func(std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
         invalid_command_func = func;
+    }
+
+    void set_argument_name(std::vector<std::string>& path, int idx, std::string name) {
+        dispatch_node_t* cur = traverse_entire(path);
+
+        if(idx >= cur->num_args) {
+            index_failed(idx, cur->num_args);
+        }
+
+        cur->args[idx].name = name;
     }
 };
 
