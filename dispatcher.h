@@ -44,7 +44,7 @@ private:
 
         std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func;
 
-        std::function<void(std::vector<arg_t>&, std::vector<std::string>&, std::vector<std::string>)> invalid_args_func;
+        std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func;
 
         dispatch_node_t* find_next(std::string name) {
             for(int i = 0; i < next.size(); i++) {
@@ -293,7 +293,7 @@ private:
         return res;
     }
 
-    static void invalid_command_func(std::vector<std::string>& path, std::vector<std::string>& next, std::string& name) {
+    std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func = [](std::vector<std::string>& path, std::vector<std::string>& next, std::string& name) {
         std::vector<std::string> closest = find_close(next, name, 2);
 
         std::cout << "Unknown command: " << path_to_str(path) << " \"" << name << "\"\n\n";
@@ -318,9 +318,9 @@ private:
             }
             std::cout<<'\n';
         }
-    }
-
-    static void invalid_args_func(std::vector<std::string>& names, std::vector<bool>& converted, std::vector<std::string>& path, std::vector<std::string>& input) {
+    };
+    
+    std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func = [](std::vector<std::string>& names, std::vector<bool>& converted, std::vector<std::string>& path, std::vector<std::string>& input) {
         std::cout << "Invalid arguments: " << path_to_str(path);
         bool first = true;
         for(int i = 0; i < converted.size(); i++) {
@@ -348,7 +348,7 @@ private:
             }
         }
         std::cout<<'\n'<<'\n';
-    }
+    };
 
 public:
     Dispatcher() {
@@ -376,7 +376,24 @@ public:
 
 
         if(!(cur->execute)) {
-            if(cur->invalid_command_msg.empty()) {
+            if(cur->invalid_command_func) {
+                std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
+                std::vector<std::string> next = cur->get_next();
+
+                std::string name = "";
+                if(idx < names.size()) {
+                    name = names[idx];
+                }
+
+                cur->invalid_command_func(path, next, name);
+            }
+            else if(!cur->invalid_command_msg.empty()) {
+                std::cout << cur->invalid_command_msg << std::endl;
+            }
+            else if(!invalid_command_msg.empty()) {
+                std::cout << invalid_command_msg << std::endl;
+            }
+            else {
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
                 std::vector<std::string> next = cur->get_next();
 
@@ -386,9 +403,6 @@ public:
                 }
 
                 invalid_command_func(path, next, name);
-            }
-            else {
-                std::cout << cur->invalid_command_msg << std::endl;
             }
             return;
         }
@@ -446,36 +460,56 @@ public:
         }
 
         if(!cur->check(args)) {
-            if(cur->invalid_args_msg.empty()) {
-                if(invalid_args_msg.empty()) {
-                    std::vector<bool> converted(args.size(), false);
-                    std::vector<std::string> arg_str(args.size(), "");
-                    for(int i = 0; i < args.size(); i++) {
-                        if(args[i].first.empty()) {
-                            converted[i] = true;
-                            continue;
-                        }
-
-                        arg_str[i] = args[i].first;
-
-                        try {
-                            conversions[cur->args[i].type](args[i].first);
-                            converted[i] = true;
-                        }
-                        catch(...) { }
+            if(cur->invalid_args_func) {
+                std::vector<bool> converted(args.size(), false);
+                std::vector<std::string> arg_str(args.size(), "");
+                for(int i = 0; i < args.size(); i++) {
+                    if(args[i].first.empty()) {
+                        converted[i] = true;
+                        continue;
                     }
 
-                    std::vector<std::string> cur_names = cur->get_names();
-                    std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
+                    arg_str[i] = args[i].first;
 
-                    invalid_args_func(cur_names, converted, path, arg_str);
+                    try {
+                        conversions[cur->args[i].type](args[i].first);
+                        converted[i] = true;
+                    }
+                    catch(...) { }
                 }
-                else {
-                    std::cout << invalid_args_msg << std::endl;
-                }
+
+                std::vector<std::string> cur_names = cur->get_names();
+                std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
+                cur->invalid_args_func(cur_names, converted, path, arg_str);
+            }
+            else if(!cur->invalid_args_msg.empty()) {
+                std::cout << cur->invalid_args_msg << std::endl;
+            }
+            else if(!invalid_args_msg.empty()) {
+                std::cout << invalid_args_msg << '\n';
             }
             else {
-                std::cout << cur->invalid_args_msg << std::endl;
+                std::vector<bool> converted(args.size(), false);
+                std::vector<std::string> arg_str(args.size(), "");
+                for(int i = 0; i < args.size(); i++) {
+                    if(args[i].first.empty()) {
+                        converted[i] = true;
+                        continue;
+                    }
+
+                    arg_str[i] = args[i].first;
+
+                    try {
+                        conversions[cur->args[i].type](args[i].first);
+                        converted[i] = true;
+                    }
+                    catch(...) { }
+                }
+
+                std::vector<std::string> cur_names = cur->get_names();
+                std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
+
+                invalid_args_func(cur_names, converted, path, arg_str);
             }
             return;
         }
@@ -550,7 +584,7 @@ public:
         cur->add_default(idx, def);
     }
 
-    void add_invalid_args_message(std::vector<std::string> path, std::string msg) {
+    void add_target_invalid_args_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -560,7 +594,7 @@ public:
         cur->set_invalid_args_message(msg);
     }
 
-    void add_invalid_command_message(std::vector<std::string> path, std::string msg) {
+    void add_target_invalid_command_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur) {
@@ -568,6 +602,42 @@ public:
         }
 
         cur->set_invalid_command_message(msg);
+    }
+
+    void add_default_invalid_args_message(std::string msg) {
+        invalid_args_msg = msg;
+    }
+
+    void add_default_invalid_command_message(std::string msg) {
+        invalid_command_msg = msg;
+    }
+
+    void add_target_invalid_args_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
+        dispatch_node_t* cur = traverse_entire(path);
+
+        if(!cur) {
+            path_failed(path);
+        }
+
+        cur->invalid_args_func = func;
+    }
+
+    void add_target_invalid_command_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
+        dispatch_node_t* cur = traverse_entire(path);
+
+        if(!cur) {
+            path_failed(path);
+        }
+
+        cur->invalid_command_func = func;
+    }
+
+    void add_default_invalid_args_func(std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
+        invalid_args_func = func;
+    }
+
+    void add_default_invalid_command_func(std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
+        invalid_command_func = func;
     }
 };
 

@@ -194,7 +194,7 @@ TEST_F(DispatcherTests, InvalidArgsTest) {
     };
 
     d.add_command({"test"}, func);
-    d.add_invalid_args_message({"test"}, "updated message");
+    d.add_target_invalid_args_message({"test"}, "updated message");
 
     int argc = 3;
     const char* argv[] = {"Dispatcher", "test", "10"};
@@ -270,4 +270,23 @@ TEST_F(DispatcherTests, ValueFlagTest) {
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "510\n");
+}
+
+TEST_F(DispatcherTests, CustomInvalidCommandFuncTest) {
+    Dispatcher d;
+
+    void (*func)(int, int) = [](int x, int y) {
+        std::cout<<x + y<<std::endl;
+    };
+
+    d.add_command({"test"}, func);
+    d.add_target_invalid_command_func({}, [](std::vector<std::string>&, std::vector<std::string>&, std::string&) -> void {
+        std::cout << "custom\n";
+    });
+
+    int argc = 1;
+    const char* argv[] = {"Dispatcher"};
+    d.execute_command(argc, argv);
+    
+    EXPECT_EQ(output_buffer.str(), "custom\n");
 }
