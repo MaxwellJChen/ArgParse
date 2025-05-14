@@ -232,16 +232,15 @@ private:
         cur->args = { arg_t(Args{ })... };
     }
 
-    int trim_flag(std::string& s) {
+    std::string trim_flag(std::string s) {
         for(int i = 0; i < s.size(); i++) {
             if(s[i] != '-') {
                 s = s.substr(i, s.size() - i);
-                return i;
-                break;
+                return s;
             }
         }
 
-        return s.size();
+        return s;
     }
 
     static int levenshtein_distance(std::string& s1, std::string& s2) {
@@ -280,7 +279,7 @@ private:
     std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func = [](std::vector<std::string>& path, std::vector<std::string>& next, std::string& name) {
         std::vector<std::string> closest = find_close(next, name, 2);
 
-        std::cout << "Unknown command: " << path_to_str(path) << " \"" << name << "\"\n\n";
+        std::cout << "Unknown command: " << path_to_str(path) << " \033[31m" << name << "\033[30m\n\n";
 
         if(!closest.empty()) {
             if(closest.size() == 1) {
@@ -309,7 +308,7 @@ private:
         bool first = true;
         for(int i = 0; i < converted.size(); i++) {
             if(!converted[i]) {
-                std::cout << " \"" << input[i] << '"';
+                std::cout << " \033[31m" << input[i] << "\033[30m";
             }
             else {
                 std::cout << ' ' << input[i];
@@ -397,31 +396,38 @@ public:
         std::vector<std::any> args(cur->num_args);
         std::vector<bool> converted(cur->num_args);
         std::vector<bool> flags(args.size());
+        std::vector<std::vector<int>> attempted(cur->num_args);
         bool suc = true;
 
         // find and update flags
         for(int i = 0; i < names.size(); i++) {
-            if(!trim_flag(names[i])) continue;
+            std::string trimmed = trim_flag(names[i]);
+            if(trimmed.size() == names[i].size()) continue;
 
-            auto [idx, value] = cur->find_flag(names[i]);
+            auto [idx, value] = cur->find_flag(trimmed);
 
             if(idx == -1) {
-                std::cout << "Failed to find flag " + names[i] + '.' << std::endl;
-                return;
+                // std::cout << "Failed to find flag " + names[i] + '.' << std::endl;
+                // return;
+                continue;
             }
+
+            attempted[idx].push_back(i);
 
             flags[i] = true;
             if(!value.has_value()) {
                 i++;
 
                 if(i >= names.size()) {
-                    std::cout << "Positional flag " + names[i] + " lacks argument" << std::endl;
-                    return;
+                    // std::cout << "Positional flag " + names[i] + " lacks argument" << std::endl;
+                    // return;
+                    continue;
                 }
 
                 flags[i] = true;
                 
                 args[idx] = convert(cur->args[idx].type, names[i]);
+                attempted[idx].push_back(i);
             }
             else {
                 args[idx] = value;
@@ -432,11 +438,12 @@ public:
         for(int i = 0, idx = 0; i < names.size(); i++) {
             if(flags[i]) continue;
 
-            while(idx < args.size() && args[idx].has_value()) {
+            while(idx < args.size() && !attempted[idx].empty()) {
                 idx++;
             }
 
             args[idx] = convert(cur->args[idx].type, names[i]);
+            attempted[idx].push_back(i);
         }
 
         // fill in default values
@@ -445,24 +452,30 @@ public:
                 args[i] = cur->args[i].def;
             }
         }
-
+        
+        std::vector<bool> successes(names.size(), false);
         for(int i = 0; i < args.size(); i++) {
             if(args[i].has_value()) {
-                converted[i] = true;
+                for(int j : attempted[i]) {
+                    successes[j] = true;
+                }
             }
             else {
                 suc = false;
-                break;
             }
         }
+
+        // for(int i : attempted_mapping) {
+        //     std::cout<<i<<' ';
+        // }
+        // std::cout<<'\n';
 
         // check arguments
         if(!suc) {
             if(cur->invalid_args_func) {
-                std::vector<std::string> arg_str(args.size(), "");
                 std::vector<std::string> cur_names = cur->get_names();
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
-                cur->invalid_args_func(cur_names, converted, path, arg_str);
+                cur->invalid_args_func(cur_names, successes, path, names);
             }
             else if(!cur->invalid_args_msg.empty()) {
                 std::cout << cur->invalid_args_msg << std::endl;
@@ -471,10 +484,9 @@ public:
                 std::cout << invalid_args_msg << '\n';
             }
             else {
-                std::vector<std::string> arg_str(args.size(), "");
                 std::vector<std::string> cur_names = cur->get_names();
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
-                invalid_args_func(cur_names, converted, path, arg_str);
+                invalid_args_func(cur_names, successes, path, names);
             }
             return;
         }
@@ -574,7 +586,7 @@ public:
         invalid_command_func = func;
     }
 
-    void set_argument_name(std::vector<std::string>& path, int idx, std::string name) {
+    void set_arg_name(std::vector<std::string> path, int idx, std::string name) {
         dispatch_node_t* cur = traverse_entire(path);
 
         if(idx >= cur->num_args) {
