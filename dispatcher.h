@@ -4,7 +4,6 @@
 #include <any>
 #include <functional>
 #include <iostream>
-#include <span>
 #include <string>
 #include <tuple>
 #include <typeindex>
@@ -29,9 +28,7 @@ private:
     };
 
     struct dispatch_node_t {
-        std::function<void(std::vector<std::pair<std::string, std::any>>)> execute; ///< Wrapper function to execute arguments on previously provided function.
-
-        std::function<bool(std::vector<std::pair<std::string, std::any>>)> check; ///< Checks if arguments can be converted to the correct types.
+        std::function<void(std::vector<std::any>&)> execute; ///< Wrapper function to execute arguments on previously provided function.
 
         int num_args; ///< The number of arguments for a function.
 
@@ -47,7 +44,7 @@ private:
 
         std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func;
 
-        dispatch_node_t* find_next(std::string name) {
+        dispatch_node_t* find_next(std::string& name) {
             for(int i = 0; i < next.size(); i++) {
                 std::vector<std::string>& names = next[i].first;
 
@@ -79,7 +76,7 @@ private:
             return res;
         }
 
-        std::pair<int, std::any> find_flag(std::string flag) {
+        std::pair<int, std::any> find_flag(std::string& flag) {
             for(int i = 0; i < num_args; i++) {
                 if(args[i].flags.find(flag) != args[i].flags.end()) {
                     return {i, args[i].flags[flag]};
@@ -93,7 +90,7 @@ private:
             args[idx].def = def;
         }
 
-        bool add_alias(std::string name, std::string alias) {
+        bool add_alias(std::string& name, std::string& alias) {
             for(int i = 0; i < next.size(); i++) {
                 std::vector<std::string>& names = next[i].first;
     
@@ -108,11 +105,11 @@ private:
             return false;
         }
 
-        void set_invalid_args_message(std::string msg) {
+        void set_invalid_args_message(std::string& msg) {
             invalid_args_msg = msg;
         }
 
-        void set_invalid_command_message(std::string msg) {
+        void set_invalid_command_message(std::string& msg) {
             invalid_command_msg = msg;
         }
     };
@@ -125,22 +122,14 @@ private:
         delete(cur);
     }
 
-    template<typename T>
-    T convert(std::pair<std::string, std::any> arg) {
-        if(arg.first.empty()) {
-            return std::any_cast<T>(arg.second);
-        }
-        return std::any_cast<T>(conversions[typeid(T)](arg.first));
-    }
-
     template<int N, typename ...Args>
-    std::tuple<Args...> convert_args(std::vector<std::pair<std::string, std::any>> args) {
+    std::tuple<Args...> convert_args(std::vector<std::any>& args) {
         return convert_args_impl<Args...>(args, std::make_index_sequence<N>{});
     }
 
     template<typename ...Args, std::size_t ...I>
-    std::tuple<Args...> convert_args_impl(std::vector<std::pair<std::string, std::any>> args, std::index_sequence<I...> seq) {
-        return std::make_tuple(convert<Args>(args[I])...);
+    std::tuple<Args...> convert_args_impl(std::vector<std::any>& args, std::index_sequence<I...> seq) {
+        return std::make_tuple(std::any_cast<Args>(args[I])...);
     }
 
     dispatch_node_t* root;
@@ -151,6 +140,18 @@ private:
         {typeid(double), [](std::string s) { return stod(s); }},
         {typeid(std::string), [](std::string s) { return s; }}
     };
+
+    std::any convert(std::type_index type, std::string s) {
+        if(conversions.find(type) != conversions.end()) {
+            try {
+                return conversions[type](s);
+            }
+            catch(...) {
+                return std::any();
+            }
+        }
+        throw std::logic_error("Missing proper conversion for argument " + s + '.');
+    }
 
     std::string invalid_args_msg;
 
@@ -163,10 +164,6 @@ private:
         }
 
         return path_str;
-    }
-
-    static void path_failed(std::vector<std::string>& path) {
-        throw std::logic_error("Failed to find path: " + path_to_str(path));
     }
 
     static void index_failed(int idx, int num_args) {
@@ -186,7 +183,7 @@ private:
         return cur;
     }
 
-    std::pair<int, dispatch_node_t*> traverse_until(std::vector<std::string> path) {
+    std::pair<int, dispatch_node_t*> traverse_until(std::vector<std::string>& path) {
         dispatch_node_t* cur = root;
         int idx;
         
@@ -207,7 +204,7 @@ private:
         return {idx, cur};
     }
 
-    dispatch_node_t* traverse_drill(std::vector<std::string> path) {
+    dispatch_node_t* traverse_drill(std::vector<std::string>& path) {
         dispatch_node_t* cur = root;
         for(int i = 0; i < path.size(); i++) {
             dispatch_node_t* next = cur->find_next(path[i]);
@@ -227,21 +224,7 @@ private:
     void add_command_impl(std::vector<std::string> path, std::function<void(Args...)> func) {
         dispatch_node_t* cur = traverse_drill(path);
 
-        cur->check = [this](std::vector<std::pair<std::string, std::any>> args) {
-            if(args.size() != N) {
-                return false;
-            }
-
-            try {
-                convert_args<N, Args...>(args);
-                return true;
-            }
-            catch(...) {
-                return false;
-            }
-        };
-
-        cur->execute = [func, this](std::vector<std::pair<std::string, std::any>> args) {
+        cur->execute = [func, this](std::vector<std::any> args) {
             std::apply(func, convert_args<N, Args...>(args));
         };
         cur->num_args = N;
@@ -310,14 +293,14 @@ private:
             for(std::string& close : closest) {
                 std::cout << '\t' << close << '\n';
             }
-            std::cout<<'\n';
+            std::cout << '\n';
         }
         else {
             std::cout << "Possible commands are:\n";
             for(std::string& name : next) {
                 std::cout << '\t' << name << '\n';
             }
-            std::cout<<'\n';
+            std::cout << '\n';
         }
     };
     
@@ -348,7 +331,7 @@ private:
                 std::cout << ' ';
             }
         }
-        std::cout<<'\n'<<'\n';
+        std::cout << '\n' << '\n';
     };
 
 public:
@@ -411,9 +394,10 @@ public:
         
         names = std::vector<std::string>(names.begin() + idx, names.end());
 
-        std::vector<std::pair<std::string, std::any>> args(cur->num_args);
-
+        std::vector<std::any> args(cur->num_args);
+        std::vector<bool> converted(cur->num_args);
         std::vector<bool> flags(args.size());
+        bool suc = true;
 
         // find and update flags
         for(int i = 0; i < names.size(); i++) {
@@ -431,15 +415,16 @@ public:
                 i++;
 
                 if(i >= names.size()) {
-                    std::cout<<"Positional flag " + names[i] + " lacks argument" << std::endl;
+                    std::cout << "Positional flag " + names[i] + " lacks argument" << std::endl;
                     return;
                 }
 
                 flags[i] = true;
-                args[idx].first = names[i];
+                
+                args[idx] = convert(cur->args[idx].type, names[i]);
             }
             else {
-                args[idx].second = value;
+                args[idx] = value;
             }
         }
 
@@ -447,40 +432,34 @@ public:
         for(int i = 0, idx = 0; i < names.size(); i++) {
             if(flags[i]) continue;
 
-            while(idx < args.size() && !args[idx].first.empty()) {
+            while(idx < args.size() && args[idx].has_value()) {
                 idx++;
             }
 
-            args[idx].first = names[i];
+            args[idx] = convert(cur->args[idx].type, names[i]);
         }
 
         // fill in default values
         for(int i = 0; i < args.size() && i < cur->args.size(); i++) {
-            if(args[i].first.empty() && !args[i].second.has_value()) {
-                args[i].second = cur->args[i].def;
+            if(!args[i].has_value() && cur->args[i].def.has_value()) {
+                args[i] = cur->args[i].def;
+            }
+        }
+
+        for(int i = 0; i < args.size(); i++) {
+            if(args[i].has_value()) {
+                converted[i] = true;
+            }
+            else {
+                suc = false;
+                break;
             }
         }
 
         // check arguments
-        if(!cur->check(args)) {
+        if(!suc) {
             if(cur->invalid_args_func) {
-                std::vector<bool> converted(args.size(), false);
                 std::vector<std::string> arg_str(args.size(), "");
-                for(int i = 0; i < args.size(); i++) {
-                    if(args[i].first.empty()) {
-                        converted[i] = true;
-                        continue;
-                    }
-
-                    arg_str[i] = args[i].first;
-
-                    try {
-                        conversions[cur->args[i].type](args[i].first);
-                        converted[i] = true;
-                    }
-                    catch(...) { }
-                }
-
                 std::vector<std::string> cur_names = cur->get_names();
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
                 cur->invalid_args_func(cur_names, converted, path, arg_str);
@@ -492,26 +471,9 @@ public:
                 std::cout << invalid_args_msg << '\n';
             }
             else {
-                std::vector<bool> converted(args.size(), false);
                 std::vector<std::string> arg_str(args.size(), "");
-                for(int i = 0; i < args.size(); i++) {
-                    if(args[i].first.empty()) {
-                        converted[i] = true;
-                        continue;
-                    }
-
-                    arg_str[i] = args[i].first;
-
-                    try {
-                        conversions[cur->args[i].type](args[i].first);
-                        converted[i] = true;
-                    }
-                    catch(...) { }
-                }
-
                 std::vector<std::string> cur_names = cur->get_names();
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
-
                 invalid_args_func(cur_names, converted, path, arg_str);
             }
             return;
@@ -534,10 +496,6 @@ public:
 
     void add_alias(std::vector<std::string> path, std::string alias) {
         dispatch_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
-        
-        if(!cur) {
-            path_failed(path);
-        }
 
         if(!cur->add_alias(path[path.size() - 1], alias)) {
             throw std::logic_error("Failed to alias " + alias + "on " + path[path.size() - 1] + '.');
@@ -546,10 +504,6 @@ public:
 
     void add_positional_flag(std::vector<std::string> path, int idx, std::string flag) {
         dispatch_node_t* cur = traverse_entire(path);
-
-        if(!cur) {
-            path_failed(path);
-        }
 
         if(idx >= cur->num_args) {
             index_failed(idx, cur->num_args);
@@ -561,11 +515,7 @@ public:
     template<typename T>
     void add_value_flag(std::vector<std::string> path, int idx, std::string flag, T value) {
         dispatch_node_t* cur = traverse_entire(path);
-
-        if(!cur) {
-            path_failed(path);
-        }
-
+        
         if(idx >= cur->num_args) {
             index_failed(idx, cur->num_args);
         }

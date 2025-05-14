@@ -189,7 +189,7 @@ TEST_F(DispatcherTests, MissingCommandTest) {
 TEST_F(DispatcherTests, InvalidArgsTest) {
     Dispatcher d;
 
-    void (*func)(long double) = [](long double s) {
+    void (*func)(int) = [](int s) {
         std::cout<<s<<std::endl;
     };
 
@@ -197,7 +197,7 @@ TEST_F(DispatcherTests, InvalidArgsTest) {
     d.add_target_invalid_args_message({"test"}, "updated message");
 
     int argc = 3;
-    const char* argv[] = {"Dispatcher", "test", "10"};
+    const char* argv[] = {"Dispatcher", "test", "asdlkfjhaslkdjfas"};
     d.execute_command(argc, argv);
     
     EXPECT_EQ(output_buffer.str(), "updated message\n");
