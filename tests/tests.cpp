@@ -32,7 +32,6 @@ TEST_F(DispatcherTests, SingleArgumentTest) {
     void (*func)(int) = [](int x) {
         std::cout<<x * 2<<std::endl;
     };
-
     d.add_command({"bar", "baz", "foo"}, func);
 
     int argc = 5;

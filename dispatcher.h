@@ -14,14 +14,17 @@
 
 class Dispatcher {
 private:
+    using InvalidArgsFunc = std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)>;
+    using InvalidCommandFunc = std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)>;
+
     struct arg_t {
         std::unordered_map<std::string, std::any> flags; ///< Set of flags which specify a specific argument configuration.
 
         std::any def; ///< Possible default value if no other values are added.
 
-        std::string name;
+        std::string name; ///< Name of the argument.
 
-        std::type_index type;
+        std::type_index type; ///< Type of the argument.
 
         template<typename T>
         arg_t(T&&) : type(typeid(T)) { }
@@ -40,9 +43,9 @@ private:
 
         std::string invalid_args_msg = ""; ///< Invalid arguments message.
 
-        std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func;
+        std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func; ///< Function to run on invalid command
 
-        std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func;
+        std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func; ///< Function to run on invalid arguments
 
         dispatch_node_t* find_next(std::string& name) {
             for(int i = 0; i < next.size(); i++) {
@@ -86,7 +89,7 @@ private:
             return {-1, std::any()};
         }
 
-        void add_default(int idx, std::any def) {
+        void add_default(int idx, std::any& def) {
             args[idx].def = def;
         }
 
@@ -170,7 +173,7 @@ private:
         throw std::logic_error("Provided index " + std::to_string(idx) + " too large for " + std::to_string(num_args) + " arguments.");
     }
 
-    dispatch_node_t* traverse_entire(std::vector<std::string> path) {
+    dispatch_node_t* traverse_entire(std::vector<std::string>& path) {
         dispatch_node_t* cur = root;
         for(std::string& name : path) {
             cur = cur->find_next(name);
@@ -243,9 +246,9 @@ private:
         return s;
     }
 
-    static int levenshtein_distance(std::string& s1, std::string& s2) {
+    static int levenshtein(std::string& s1, std::string& s2) {
         int N = s1.size(), M = s2.size();
-        std::vector<std::vector<int>> dp(N + 1, std::vector<int>(M + 1, 1e9));
+        int dp[N + 1][M + 1];
 
         for(int i = M; i >= 0; i--) {
             dp[N][i] = M - i;
@@ -256,6 +259,7 @@ private:
 
         for(int i = N - 1; i >= 0; i--) {
             for(int j = M - 1; j >= 0; j--) {
+                dp[i][j] = 1e9;
                 dp[i][j] = std::min(dp[i][j], dp[i + 1][j + 1] + (s1[i] != s2[j])); // substitution
                 dp[i][j] = std::min(dp[i][j], 1 + dp[i][j + 1]); // deletion
                 dp[i][j] = std::min(dp[i][j], 1 + dp[i + 1][j]); // insertion
@@ -268,7 +272,7 @@ private:
     static std::vector<std::string> find_close(std::vector<std::string>& names, std::string& s, int threshold) {
         std::vector<std::string> res;
         for(std::string& name : names) {
-            if(levenshtein_distance(name, s) <= threshold) {
+            if(levenshtein(name, s) <= threshold) {
                 res.push_back(name);
             }
         }
@@ -276,7 +280,7 @@ private:
         return res;
     }
 
-    std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> invalid_command_func = [](std::vector<std::string>& path, std::vector<std::string>& next, std::string& name) {
+    InvalidCommandFunc invalid_command_func = [](std::vector<std::string>& path, std::vector<std::string>& next, std::string& name) {
         std::vector<std::string> closest = find_close(next, name, 2);
 
         std::cout << "Unknown command: " << path_to_str(path) << " \033[31m" << name << "\033[30m\n\n";
@@ -303,7 +307,7 @@ private:
         }
     };
     
-    std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> invalid_args_func = [](std::vector<std::string>& names, std::vector<bool>& converted, std::vector<std::string>& path, std::vector<std::string>& input) {
+    InvalidArgsFunc invalid_args_func = [](std::vector<std::string>& names, std::vector<bool>& converted, std::vector<std::string>& path, std::vector<std::string>& input) {
         std::cout << "Invalid arguments: " << path_to_str(path);
         bool first = true;
         for(int i = 0; i < converted.size(); i++) {
@@ -372,10 +376,10 @@ public:
                 cur->invalid_command_func(path, next, name);
             }
             else if(!cur->invalid_command_msg.empty()) {
-                std::cout << cur->invalid_command_msg << std::endl;
+                std::cout << cur->invalid_command_msg << '\n';
             }
             else if(!invalid_command_msg.empty()) {
-                std::cout << invalid_command_msg << std::endl;
+                std::cout << invalid_command_msg << '\n';
             }
             else {
                 std::vector<std::string> path = std::vector<std::string>(argv, argv + idx + 1);
@@ -407,8 +411,6 @@ public:
             auto [idx, value] = cur->find_flag(trimmed);
 
             if(idx == -1) {
-                // std::cout << "Failed to find flag " + names[i] + '.' << std::endl;
-                // return;
                 continue;
             }
 
@@ -419,8 +421,6 @@ public:
                 i++;
 
                 if(i >= names.size()) {
-                    // std::cout << "Positional flag " + names[i] + " lacks argument" << std::endl;
-                    // return;
                     continue;
                 }
 
@@ -465,11 +465,6 @@ public:
             }
         }
 
-        // for(int i : attempted_mapping) {
-        //     std::cout<<i<<' ';
-        // }
-        // std::cout<<'\n';
-
         // check arguments
         if(!suc) {
             if(cur->invalid_args_func) {
@@ -478,7 +473,7 @@ public:
                 cur->invalid_args_func(cur_names, successes, path, names);
             }
             else if(!cur->invalid_args_msg.empty()) {
-                std::cout << cur->invalid_args_msg << std::endl;
+                std::cout << cur->invalid_args_msg << '\n';
             }
             else if(!invalid_args_msg.empty()) {
                 std::cout << invalid_args_msg << '\n';
@@ -507,7 +502,10 @@ public:
     }
 
     void add_alias(std::vector<std::string> path, std::string alias) {
-        dispatch_node_t* cur = traverse_entire(std::vector<std::string>(path.begin(), path.end() - 1));
+        std::string orig = path[path.size() - 1];
+        path.pop_back();
+
+        dispatch_node_t* cur = traverse_entire(path);
 
         if(!cur->add_alias(path[path.size() - 1], alias)) {
             throw std::logic_error("Failed to alias " + alias + "on " + path[path.size() - 1] + '.');
@@ -543,16 +541,17 @@ public:
             index_failed(idx, cur->num_args);
         }
 
-        cur->add_default(idx, def);
+        std::any wrapper(def);
+        cur->add_default(idx, wrapper);
     }
 
-    void add_target_invalid_args_message(std::vector<std::string> path, std::string msg) {
+    void add_specific_invalid_args_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->set_invalid_args_message(msg);
     }
 
-    void add_target_invalid_command_message(std::vector<std::string> path, std::string msg) {
+    void add_specific_invalid_command_message(std::vector<std::string> path, std::string msg) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->set_invalid_command_message(msg);
@@ -566,13 +565,13 @@ public:
         invalid_command_msg = msg;
     }
 
-    void add_target_invalid_args_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
+    void add_specific_invalid_args_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->invalid_args_func = func;
     }
 
-    void add_target_invalid_command_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
+    void add_specific_invalid_command_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->invalid_command_func = func;
