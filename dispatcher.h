@@ -338,6 +338,9 @@ private:
     };
 
 public:
+    using InvalidArgsFunc = InvalidArgsFunc;
+    using InvalidCommandFunc = InvalidCommandFunc;
+
     Dispatcher() {
         root = new dispatch_node_t();
     }
@@ -565,23 +568,23 @@ public:
         invalid_command_msg = msg;
     }
 
-    void add_specific_invalid_args_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
+    void add_specific_invalid_args_func(std::vector<std::string> path, InvalidArgsFunc func) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->invalid_args_func = func;
     }
 
-    void add_specific_invalid_command_func(std::vector<std::string> path, std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
+    void add_specific_invalid_command_func(std::vector<std::string> path, InvalidCommandFunc func) {
         dispatch_node_t* cur = traverse_entire(path);
 
         cur->invalid_command_func = func;
     }
 
-    void add_default_invalid_args_func(std::function<void(std::vector<std::string>&, std::vector<bool>&, std::vector<std::string>&, std::vector<std::string>&)> func) {
+    void add_default_invalid_args_func(InvalidArgsFunc func) {
         invalid_args_func = func;
     }
 
-    void add_default_invalid_command_func(std::function<void(std::vector<std::string>&, std::vector<std::string>&, std::string&)> func) {
+    void add_default_invalid_command_func(InvalidCommandFunc func) {
         invalid_command_func = func;
     }
 
